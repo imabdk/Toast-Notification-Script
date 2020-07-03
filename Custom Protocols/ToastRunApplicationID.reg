@@ -1,0 +1,12 @@
+Windows Registry Editor Version 5.00
+
+[HKEY_CLASSES_ROOT\ToastRunApplicationID]
+"URL Protocol"=""
+@="URL:ToastRunApplicationID Protocol"
+
+[HKEY_CLASSES_ROOT\ToastRunApplicationID\shell]
+
+[HKEY_CLASSES_ROOT\ToastRunApplicationID\shell\open]
+
+[HKEY_CLASSES_ROOT\ToastRunApplicationID\shell\open\command]
+@="C:\\ProgramData\\ToastNotificationScript\\ToastRunApplicationID.cmd"

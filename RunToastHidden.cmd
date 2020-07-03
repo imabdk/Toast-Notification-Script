@@ -1,0 +1,1 @@
+powershell.exe -file "C:\ProgramData\ToastNotificationScript\PendingReboot\New-ToastNotification.ps1" -Config "\\YourNetworkPath\ToastNotificationScript\Configs\config-toast-pendingreboot.xml"

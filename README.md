@@ -1,1 +1,1 @@
-# Windows-10-Toast-Notification-Script
+Toast-Notification-Script

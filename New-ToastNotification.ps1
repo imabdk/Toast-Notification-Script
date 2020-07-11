@@ -930,10 +930,10 @@ if ($PSAppStatus -eq "True") {
 if ($GreetGivenName -eq "True") {
     Write-Log -Message "Greeting with given name selected. Replacing HeaderText"
     $Hour = (Get-Date).TimeOfDay.Hours
-    if (($Hour -lt 0) -and ($Hour -lt 12)) {
+    if (($Hour -ge 0) -AND ($Hour -lt 12)) {
         $Greeting = $GreetMorningText
     }
-    elseif (($Hour -lt 12) -and ($Hour -lt 16)) {
+    elseif (($Hour -ge 12) -AND ($Hour -lt 16)) {
         $Greeting = $GreetAfternoonText
     }
     else {

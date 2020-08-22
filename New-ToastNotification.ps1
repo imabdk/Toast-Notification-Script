@@ -14,7 +14,7 @@
 
 .NOTES
     Filename: New-ToastNotification.ps1
-    Version: 1.8.0
+    Version: 2.0.0
     Author: Martin Bengtsson
     Blog: www.imab.dk
     Twitter: @mwbengtsson
@@ -76,6 +76,24 @@
                 - Added support for having config.xml file hosted online
                 - Added support for having images used in the script hosted online
 
+
+              
+              
+              ** Most of the work done in version 2.0.0 is done by Chad Bower // @Brower_Cha on Twitter **
+              ** I have added the additional protocols/scripts and rewritten some minor things **
+              ** As well as added support for dynamic deadline retrieval for software updates **
+              ** Stuff has been rewritten to suit my understanding and thoughts of the script **
+
+    2.0.0 -   Huge changes to how this script handles custom protocols
+                - Added Support for Software Updates : Searches for an update (IPU) and will store in variable
+                - Added Support for Custom Actions/Protocols within the script under user context removing the need for that to be run under SYSTEM/ADMIN
+                    <Option Name="Action" Value="ToastRunUpdateID:" />
+                - Added Support to dynamically create Custom Action Scripts to support Custom Protocols
+                - Added New XML Types for SoftwareUpdates : 
+                    <Option Name="RunUpdateTitle" Enabled="True" Value="Version 1909" />
+                    <Option Name="RunUpdateID" Enabled="True" Value="3012973" />
+                - Added support for getting deadline date/time dynamically for software updates
+
 .LINK
     https://www.imab.dk/windows-10-toast-notification-script/
 #> 
@@ -88,7 +106,7 @@ param(
 
 ######### FUNCTIONS #########
 
-# Create write log function
+# Create Write-Log function
 function Write-Log() {
     [CmdletBinding()]
     param(
@@ -96,10 +114,12 @@ function Write-Log() {
         [ValidateNotNullOrEmpty()]
         [Alias("LogContent")]
         [string]$Message,
+
         # EDIT with your location for the local log file
         [Parameter(Mandatory=$false)]
         [Alias('LogPath')]
         [string]$Path="$env:APPDATA\ToastNotificationScript\New-ToastNotification.log",
+
         [Parameter(Mandatory=$false)]
         [ValidateSet("Error","Warn","Info")]
         [string]$Level="Info"
@@ -164,6 +184,7 @@ function Test-PendingRebootRegistry() {
     Write-Log -Message "Check returned FALSE on ANY of the registry checks: Reboot is NOT pending!"
     return $false
 }
+
 # Create Pending Reboot function for WMI via ConfigMgr client
 function Test-PendingRebootWMI() {
     Write-Log -Message "Running Test-PendingRebootWMI function"   
@@ -171,7 +192,7 @@ function Test-PendingRebootWMI() {
         Write-Log -Message "Computer has ConfigMgr client installed - checking for pending reboots in WMI"
         $Util = [wmiclass]"\\.\root\ccm\clientsdk:CCM_ClientUtilities"
         $Status = $Util.DetermineIfRebootPending()
-        if(($Status -ne $null) -AND $Status.RebootPending) {
+        if (($Status -ne $null) -AND ($Status.RebootPending)) {
             Write-Log -Message "Check returned TRUE on checking WMI for pending reboot: Reboot is pending!"
             return $true
         }
@@ -183,6 +204,7 @@ function Test-PendingRebootWMI() {
         return $false
     }
 }
+
 # Create Get Device Uptime function
 function Get-DeviceUptime() {
     Write-Log -Message "Running Get-DeviceUptime function"
@@ -190,6 +212,7 @@ function Get-DeviceUptime() {
     $Uptime = (Get-Date) - ($OS.LastBootUpTime)
     $Uptime.Days
 }
+
 # Create Get GivenName function
 function Get-GivenName() {
     Write-Log -Message "Running Get-GivenName function"
@@ -203,7 +226,7 @@ function Get-GivenName() {
         Write-Log -Message "$_." -Level Warn
     }
     if ($GivenName) {
-        Write-Log -Message "Given name retrieved from Active Directory"
+        Write-Log -Message "Given name retrieved from Active Directory: $GivenName"
         $GivenName
     }
     elseif (-NOT($GivenName)) {
@@ -220,7 +243,7 @@ function Get-GivenName() {
 	            $RegKey = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Authentication\LogonUI\SessionData"
 	            $DisplayName = (Get-ChildItem -Path $RegKey | Where-Object {$_.GetValue("LoggedOnUserSID") -eq $LoggedOnSID} | Select-Object -First 1).GetValue("LoggedOnDisplayName")
 		        if ($DisplayName) {
-                    Write-Log -Message "Given name found in WMI with the CCM client"
+                    Write-Log -Message "Given name found in WMI with the CCM client: : $GivenName"
 			        $GivenName = $DisplayName.Split()[0].Trim()
                     $GivenName
 		        }
@@ -240,6 +263,7 @@ function Get-GivenName() {
         $GivenName
     }
 }
+
 # Create Get-WindowsVersion function
 # This is used to determine if the script is running on Windows 10 or not
 function Get-WindowsVersion() {
@@ -257,6 +281,7 @@ function Get-WindowsVersion() {
         $false
     }
 }
+
 # Create Windows Push Notification function.
 # This is testing if toast notifications generally are disabled within Windows 10
 function Test-WindowsPushNotificationsEnabled() {
@@ -274,6 +299,7 @@ function Test-WindowsPushNotificationsEnabled() {
         $false
     }
 }
+
 # Create function for testing for local Active Directory password expiration.
 # Thank you @ Andrew Wells :-)
 function Get-ADPasswordExpiration([string]$fADPasswordExpirationDays) {
@@ -333,20 +359,32 @@ function Get-ADPasswordExpiration([string]$fADPasswordExpirationDays) {
         $false
     }
 }
+
 # Create function for retrieving deadline directly from WMI based on the PackageID. 
-# This works for Task Sequences and regular packages
+# This works for Task Sequences, regular packages and software updates
 # Thank you @kevmjohnston :-)
 function Get-DynamicDeadline() {
     Write-Log -Message "Running Get-DynamicDeadline function. Trying to get deadline details from WMI and ConfigMgr"
     if (Get-Service -Name ccmexec -ErrorAction SilentlyContinue) {
-        try {
-            # Get task sequence program information from WMI. This is the same location used by Software Center
-            $PackageID = Get-CimInstance -Namespace root\ccm\clientsdk -Query "SELECT * FROM CCM_Program where PackageID = '$DynDeadlineValue'"
+        if ($RunPackageIDEnabled -eq "True") {
+            Write-Log -Message "RunPackageIDEnabled is True. Trying to get deadline information based on package id"
+            try {
+                # Get task sequence program information from WMI. This is the same location used by Software Center
+                $PackageID = Get-CimInstance -Namespace root\ccm\clientsdk -Query "SELECT * FROM CCM_Program where PackageID = '$DynDeadlineValue'"
+            }
+            catch { 
+                Write-Log -Message "Failed to get PackageID from WMI" -Level Warn
+            }
         }
-        catch { 
-            Write-Log -Message "Failed to get PackageID from WMI" -Level Warn
+        elseif ($RunUpdateIDEnabled -eq "True") {
+            Write-Log -Message "RunUpdateIDEnabled is True. Trying to get deadline information based on update id"
+            $UpdateID = Get-CMUpdate
         }
-        if ($PackageID) {
+        else {
+            Write-Log -Level Warn "Currently no option enabled within the toast configuration which supports getting the deadline retrieved dynamically"
+        }
+
+        if (-NOT[string]::IsNullOrEmpty($PackageID)) {
             # Get the deadline based on the package id
             # The Where-Object clause filters out any old/dummy deadline values
             # The Measure-Object clause returns only the earliest deadline if multiple program instances are found. In testing, I've only seen one instance
@@ -364,15 +402,82 @@ function Get-DynamicDeadline() {
                 Write-Log -Message "The script is continuing, but the toast is displayed without deadline date and time" -Level Warn
             }
         }
+        elseif (-NOT[string]::IsNullOrEmpty($UpdateID)) {
+            Write-Log -Message "UpdateID retrieved. UpdateID is: $DynDeadlineValue. Now getting deadline date and time"
+            if (-NOT[string]::IsNullOrEmpty($UpdateID.Deadline)) {
+                Write-Log -Message "Deadline date and time successfully retrieved from WMI. Deadline is: $($UpdateID.Deadline)"
+                $UpdateID.Deadline.ToUniversalTime()
+            }
+            else {
+                Write-Log -Message "Failed to get deadline date and time from WMI" -Level Warn
+                Write-Log -Message "Please check if there really is a deadline configured" -Level Warn
+                Write-Log -Message "The script is continuing, but the toast is displayed without deadline date and time" -Level Warn
+            }
+
+        }
         else {
-            Write-Log -Message "Appears that the specified package ID: $DynDeadlineValue is not deployed to the device."
-            # Nothing to see here yet  
+            Write-Log -Message "Appears that the specified package ID or update ID: $DynDeadlineValue is not deployed to the device."
         }
     }
     else {
-        Write-Log -Message "ConfigMgr service not found" -Level Warn
+        Write-Log -Message "ConfigMgr service not found. This function requires the ConfigMgr client to be installed" -Level Warn
     }
 }
+
+# Get-CMUpdate function
+# This gets information about a deployed software update from WMI on the device
+# HUGE shout-out to Chad Brower // @Brower_Cha on Twitter
+# Added in version 2.0.0
+function Get-CMUpdate() {
+    Write-Log -Message "Running Get-CMUpdate function"
+    # If the ConfigMgr service exist
+    if (Get-Service -Name ccmexec -ErrorAction SilentlyContinue) {
+        try {
+            # Get update information from WMI based on UpdateID and UpdateTitle
+            $GetCMUpdate = Get-CimInstance -Namespace root\ccm\clientSDK -Query “SELECT * FROM CCM_SoftwareUpdate WHERE ArticleID = '$RunUpdateIDValue' AND Name LIKE '%$RunUpdateTitleValue%'”
+        }
+        catch {
+            Write-Log -Level Error -Message "Failed to retrieve UpdateID from WMI with the CM client"
+        }
+        # If an update is based on the details from config.xml is deployed to the computer
+        if (-NOT[string]::IsNullOrEmpty($GetCMUpdate)) {
+            # Check EvaluationState: https://docs.microsoft.com/en-us/mem/configmgr/develop/reference/core/clients/sdk/ccm_softwareupdate-client-wmi-class
+            # There are 28 eval states. Perhaps add them all in the future
+            switch ($GetCMUpdate.EvaluationState) {
+                0 { $EvaluationState = 'None' }
+                1 { $EvaluationState = 'Available' }
+                2 { $EvaluationState = 'Submitted' }
+                7 { $EvaluationState = 'Installing' }
+                8 { $EvaluationStatet = 'Reboot' }
+                9 { $EvaluationState = 'Reboot' }
+                13 { $EvaluationState = 'Error' }
+            }
+            # If the evaluation of the update is in a desired state, write the details to output
+            if ($EvaluationState -eq "None" -OR $EvaluationState -eq "Available" -OR $EvaluationState -eq "Submitted") {
+                Write-Log -Level Info -Message "Found update that matches UpdateID: $($GetCMUpdate.ArticleID) and name: $($GetCMUpdate.Name)."
+                $GetCMUpdate
+            }
+            elseif ($EvaluationState -eq "Error") {
+                Write-Log -Message "UpdateID: $($GetCMUpdate.ArticleID) is in evaluation state: $EvaluationState. Retrying installation"
+                $GetCMUpdate
+            }
+            else {
+                Write-Log -Level Warn -Message "EvalutationState of UpdateID: $($GetCMUpdate.ArticleID) is not set to available. EvaluationState is: $EvaluationState."
+                Write-Log -Level Warn -Message "Script will exit here. Not displaying toast notification when when eval state is: $EvaluationState"
+                Exit 1
+            }
+        }
+        else {
+            Write-Log -Level Warn -Message "Specified update was not found on system. UpdateID: $RunUpdateIDValue and name: $RunUpdateTitleValue. Please check deployment in ConfigMgr"
+            Write-Log -Level Warn -Message "Script will exit here. Not displaying toast notification when specified update is not deployed"
+            Exit 1
+        }
+    }
+    else {
+        Write-Log -Level Warn -Message "ConfigMgr service not found. This function requires the ConfigMgr client to be installed"
+    }
+}
+
 # Create Write-PackageIDRegistry function
 function Write-PackageIDRegistry() {
     Write-Log -Message "Running Write-PackageIDRegistry function"
@@ -413,13 +518,16 @@ function Write-PackageIDRegistry() {
             }
             else {
                 Write-Log -Level Warn -Message "PackageID: $RunPackageIDValue was not found in WMI as deployed to the client. Please check the config.xml or deployment in ConfigMgr"
+                Write-Log -Level Warn -Message "Script will exit here. Not displaying toast notification when specified package is not deployed"
+                Exit 1
             }
         }
         else {
-            Write-Log -Level Warn -Message "No ConfigMgr service found. This functon requires the ConfigMgr client to be installed"
+            Write-Log -Level Warn -Message "No ConfigMgr service found. This function requires the ConfigMgr client to be installed"
         }
     }
 }
+
 # Create Write-ApplicationIDRegistry function
 function Write-ApplicationIDRegistry() {
     Write-Log -Message "Running Write-ApplicationIDRegistry function"
@@ -461,10 +569,64 @@ function Write-ApplicationIDRegistry() {
             }
             else {
                 Write-Log -Level Warn -Message "ApplicationID: $RunApplicationIDValue was not found in WMI as deployed to the client. Please check the config.xml or deployment in ConfigMgr"
+                Write-Log -Level Warn -Message "Script will exit here. Not displaying toast notification when specified application is not deployed"
+                Exit 1
             }
         }
         else {
-            Write-Log -Level Warn -Message "No ConfigMgr service found. This functon requires the ConfigMgr client to be installed"
+            Write-Log -Level Warn -Message "No ConfigMgr service found. This function requires the ConfigMgr client to be installed"
+        }
+    }
+}
+
+# Create Write-UpdateIDRegistry
+# This function writes the UpdateID to registry when used with Software (Feature) Updates in ConfigMgr
+# HUGE shout-out to Chad Brower // @Brower_Cha on Twitter
+# Added in version 2.0.0
+function Write-UpdateIDRegistry() {
+    Write-Log -Message "Running Write-UpdateIDRegistry function"
+    $RegistryPath = "HKCU:\SOFTWARE\ToastNotificationScript"
+    $RegistryName = "RunUpdateID"    
+    # Making sure that the registry path being used exists
+    if (-NOT(Test-Path -Path $RegistryPath)) {
+        try {
+            New-Item -Path $RegistryPath -Force
+        }
+        catch { 
+            Write-Log -Level Warn -Message "Error. Could not create ToastNotificationScript registry path"
+        }
+    }
+    # If the UpdateID specified in the config.xml is picked up
+    if (-NOT[string]::IsNullOrEmpty($RunUpdateIDValue)) {
+        # If the ConfigMgr service exist
+        if (Get-Service -Name ccmexec -ErrorAction SilentlyContinue) {
+            # Getting the UpdateID specified in the config.xml via Get-CMUpdate function
+            try {
+                $GetUpdateID = Get-CMUpdate
+            }
+            catch { 
+                Write-Log -Level Warn -Message "Failed to successfully run the Get-CMUpdate function"
+            }
+
+            # If the UpdateID is found in WMI with the ConfigMgr client, tattoo that UpdateID into registry
+            if (-NOT[string]::IsNullOrEmpty($GetUpdateID.UpdateID)) {
+                Write-Log -Message "Get-CMDUpdate was successfully run and UpdateID was retrieved"
+                Write-Log -Message "Writing the UpdateID to registry"
+                if ((Get-ItemProperty -Path $RegistryPath -Name $RegistryName -ErrorAction SilentlyContinue).$RegistryName -ne $GetUpdateID.UpdateID) {
+                    try {
+                        New-ItemProperty -Path $RegistryPath -Name $RegistryName -Value $GetUpdateID.UpdateID -PropertyType "String" -Force   
+                    }
+                    catch {
+                        Write-Log -Level Warn -Message "Failed to write UpdateID: $($GetUpdateID.UpdateID) to registry"
+                    }
+                }
+            }
+            else {
+                Write-Log -Level Warn -Message "UpdateID: $RunUpdateIDValue was not found in WMI as deployed to the client. Please check the config.xml or deployment in ConfigMgr"
+            }
+        }
+        else {
+            Write-Log -Level Warn -Message "No ConfigMgr service found. This function requires the ConfigMgr client to be installed"
         }
     }
 }
@@ -500,6 +662,7 @@ function Display-ToastNotification() {
         }    
     }
 }
+
 # Create Test-NTSystem function
 # If the script is being run as SYSTEM, the toast notification won't display
 function Test-NTSystem() {  
@@ -512,6 +675,433 @@ function Test-NTSystem() {
         $false
     }
 }
+
+# Write-CustomActionRegistry function
+# This function creates custom protocols for the logged on user in HKCU. 
+# This will remove the need to create the protocols outside of the toast notification script
+# HUGE shout-out to Chad Brower // @Brower_Cha on Twitter
+# Added in version 2.0.0
+function Write-CustomActionRegistry() {
+    [CmdletBinding()]
+    param (
+        [Parameter(Position="0")]
+        [ValidateSet("ToastRunApplicationID","ToastRunPackageID","ToastRunUpdateID","ToastReboot")]
+        [string]
+        $ActionType,
+        [Parameter(Position="1")]
+        [string]
+        $RegCommandPath = $CustomScriptPath
+    )
+    switch ($ActionType) {
+
+        ToastReboot { 
+            # Build out registry for custom action
+            if((Test-Path -LiteralPath "HKCU:\Software\Classes\$($ActionType)\shell\open\command") -ne $true) {
+                try { 
+                    New-Item "HKCU:\Software\Classes\$($ActionType)\shell\open\command" -Force -ErrorAction SilentlyContinue | Out-Null
+                    New-ItemProperty -LiteralPath "HKCU:\Software\Classes\$($ActionType)" -Name 'URL Protocol' -Value '' -PropertyType String -Force -ErrorAction SilentlyContinue | Out-Null
+                    New-ItemProperty -LiteralPath "HKCU:\Software\Classes\$($ActionType)" -Name '(default)' -Value "URL:$($ActionType) Protocol" -PropertyType String -Force -ErrorAction SilentlyContinue | Out-Null
+                    $RegCommandValue = $RegCommandPath  + '\' + "$($ActionType).cmd"
+                    New-ItemProperty -LiteralPath "HKCU:\Software\Classes\$($ActionType)\shell\open\command" -Name '(default)' -Value $RegCommandValue -PropertyType String -Force -ErrorAction SilentlyContinue | Out-Null
+                }
+                catch {
+                    Write-Log -Level Error "Failed to create the $ActionType custom protocol in HKCU\Software\Classes. Action button might not work"
+                    $ErrorMessage = $_.Exception.Message
+                    Write-Log -Level Error -Message "$($ErrorMessage)"
+                }
+            }
+        }
+        ToastRunUpdateID { 
+            # Build out registry for custom action
+            if((Test-Path -LiteralPath "HKCU:\Software\Classes\$($ActionType)\shell\open\command") -ne $true) {
+                try { 
+                    New-Item "HKCU:\Software\Classes\$($ActionType)\shell\open\command" -Force -ErrorAction SilentlyContinue | Out-Null
+                    New-ItemProperty -LiteralPath "HKCU:\Software\Classes\$($ActionType)" -Name 'URL Protocol' -Value '' -PropertyType String -Force -ErrorAction SilentlyContinue | Out-Null
+                    New-ItemProperty -LiteralPath "HKCU:\Software\Classes\$($ActionType)" -Name '(default)' -Value "URL:$($ActionType) Protocol" -PropertyType String -Force -ErrorAction SilentlyContinue | Out-Null
+                    $RegCommandValue = $RegCommandPath  + '\' + "$($ActionType).cmd"
+                    New-ItemProperty -LiteralPath "HKCU:\Software\Classes\$($ActionType)\shell\open\command" -Name '(default)' -Value $RegCommandValue -PropertyType String -Force -ErrorAction SilentlyContinue | Out-Null
+                }
+                catch {
+                    Write-Log -Level Error "Failed to create the $ActionType custom protocol in HKCU\Software\Classes. Action button might not work"
+                    $ErrorMessage = $_.Exception.Message
+                    Write-Log -Level Error -Message "$($ErrorMessage)"
+                }
+            }
+        }
+        ToastRunPackageID { 
+            # Build out registry for custom action
+            if((Test-Path -LiteralPath "HKCU:\Software\Classes\$($ActionType)\shell\open\command") -ne $true) {
+                try { 
+                    New-Item "HKCU:\Software\Classes\$($ActionType)\shell\open\command" -Force -ErrorAction SilentlyContinue | Out-Null
+                    New-ItemProperty -LiteralPath "HKCU:\Software\Classes\$($ActionType)" -Name 'URL Protocol' -Value '' -PropertyType String -Force -ErrorAction SilentlyContinue | Out-Null
+                    New-ItemProperty -LiteralPath "HKCU:\Software\Classes\$($ActionType)" -Name '(default)' -Value "URL:$($ActionType) Protocol" -PropertyType String -Force -ErrorAction SilentlyContinue | Out-Null
+                    $RegCommandValue = $RegCommandPath  + '\' + "$($ActionType).cmd"
+                    New-ItemProperty -LiteralPath "HKCU:\Software\Classes\$($ActionType)\shell\open\command" -Name '(default)' -Value $RegCommandValue -PropertyType String -Force -ErrorAction SilentlyContinue | Out-Null
+                }
+                catch {
+                    Write-Log -Level Error "Failed to create the $ActionType custom protocol in HKCU\Software\Classes. Action button might not work"
+                    $ErrorMessage = $_.Exception.Message
+                    Write-Log -Level Error -Message "$($ErrorMessage)"
+                }
+            }
+        }
+        ToastRunApplicationID { 
+            # Build out registry for custom action
+            if((Test-Path -LiteralPath "HKCU:\Software\Classes\$($ActionType)\shell\open\command") -ne $true) {
+                try { 
+                    New-Item "HKCU:\Software\Classes\$($ActionType)\shell\open\command" -Force -ErrorAction SilentlyContinue | Out-Null
+                    New-ItemProperty -LiteralPath "HKCU:\Software\Classes\$($ActionType)" -Name 'URL Protocol' -Value '' -PropertyType String -Force -ErrorAction SilentlyContinue | Out-Null
+                    New-ItemProperty -LiteralPath "HKCU:\Software\Classes\$($ActionType)" -Name '(default)' -Value "URL:$($ActionType) Protocol" -PropertyType String -Force -ErrorAction SilentlyContinue | Out-Null
+                    $RegCommandValue = $RegCommandPath  + '\' + "$($ActionType).cmd"
+                    New-ItemProperty -LiteralPath "HKCU:\Software\Classes\$($ActionType)\shell\open\command" -Name '(default)' -Value $RegCommandValue -PropertyType String -Force -ErrorAction SilentlyContinue | Out-Null
+                }
+                catch {
+                    Write-Log -Level Error "Failed to create the $ActionType custom protocol in HKCU\Software\Classes. Action button might not work"
+                    $ErrorMessage = $_.Exception.Message
+                    Write-Log -Level Error -Message "$($ErrorMessage)"
+                }
+            }
+        }
+    }
+}
+
+# Write-CustomActionScript function
+# This function creates the custom scripts in ProgramData\ToastNotificationScript which is used to carry out custom protocol actions
+# HUGE shout-out to Chad Brower // @Brower_Cha on Twitter
+# Added in version 2.0.0
+function Write-CustomActionScript() {
+    [CmdletBinding()]
+    param (
+        [Parameter(Position="0")]
+        [ValidateSet("ToastRunApplicationID","ToastRunPackageID","ToastRunUpdateID","ToastReboot")]
+        [string]
+        $Type,
+        [Parameter(Position="1")]
+        [String]
+        $Path = $CustomScriptPath # Global var can be changed
+    )
+    # Create Path for custom scipts to live
+    if (-NOT(Test-Path -Path $Path)) {
+        Write-Log -Message "CustomScriptPath not found. Creating it: $Path"
+        try {
+            New-item -Path $Path -ItemType Directory -Force | Out-Null
+        }
+        catch {
+            Write-Log -Level Error -Message "Failed to create the CustomScriptPath folder: $Path"
+        }
+    }
+    switch ($Type) {
+        ToastRunUpdateID {
+            try {
+                $CMDFileName = $Type + '.cmd'
+                $CMDFilePath = $CustomScriptPath + '\' + $CMDFileName
+                if (-NOT(Test-Path -Path $CMDFilePath)) {
+                    Write-Log -Message "$CMDFileName does not exist - creating it"
+                    try {
+                        New-item -Path $CustomScriptPath -Name $CMDFileName -Force -OutVariable PathInfo | Out-Null
+                    }
+                    catch { 
+                        $ErrorMessage = $_.Exception.Message
+                        Write-Log -Level Error -Message "$($ErrorMessage)"
+                    }
+                    try {
+                        $GetCustomScriptPath = $PathInfo.FullName
+                        [String]$Script = 'powershell.exe -ExecutionPolicy Bypass -NoLogo -NonInteractive -NoProfile -WindowStyle Hidden -File "C:\ProgramData\ToastNotificationScript\ToastRunUpdateID.ps1"'
+                        if (-NOT[string]::IsNullOrEmpty($Script)) {
+                            Out-File -FilePath $GetCustomScriptPath -InputObject $Script -Encoding ASCII -Force
+                        }
+                    }
+                    catch {
+                        Write-Log -Level Error "Failed to create the custom .cmd script for $Type. Action button might not work"
+                        $ErrorMessage = $_.Exception.Message
+                        Write-Log -Level Error -Message "$($ErrorMessage)"
+                    }
+                }
+                else {
+                    Write-Log -Message "$CMDFileName already exist. Doing nothing"
+                }
+            }
+            catch {
+                Write-Log -Level Error "Failed to create the custom .cmd script for $Type. Action button might not work"
+                $ErrorMessage = $_.Exception.Message
+                Write-Log -Level Error -Message "$($ErrorMessage)"
+            }
+            try {
+                $PS1FileName = $Type + '.ps1'
+                $PS1FilePath = $CustomScriptPath + '\' + $PS1FileName
+                if (-NOT(Test-Path -Path $PS1FilePath)) {
+                    Write-Log -Message "$PS1FileName does not exist - creating it"
+                    try {
+                        New-item -Path $CustomScriptPath -Name $PS1FileName -Force -OutVariable PathInfo | Out-Null
+                    }
+                    catch { 
+                        $ErrorMessage = $_.Exception.Message
+                        Write-Log -Level Error -Message "$($ErrorMessage)"
+                    }
+                    try {
+                        $GetCustomScriptPath = $PathInfo.FullName
+                        [String]$Script = @'
+$RegistryPath = "HKCU:\SOFTWARE\ToastNotificationScript"
+$UpdateID = (Get-ItemProperty -Path $RegistryPath -Name "RunUpdateID").RunUpdateID
+$Arguments = Get-WmiObject -Namespace root\ccm\clientSDK -Query "SELECT * FROM CCM_SoftwareUpdate WHERE UpdateID = '$UpdateID'"
+Invoke-WmiMethod -Namespace root\ccm\clientsdk -Class CCM_SoftwareUpdatesManager -Name InstallUpdates -ArgumentList (,$Arguments)
+if (Test-Path -Path "C:\Windows\CCM\ClientUX\SCClient.exe") { Start-Process -FilePath "C:\Windows\CCM\ClientUX\SCClient.exe" -ArgumentList "SoftwareCenter:Page=Updates" -WindowStyle Maximized }
+exit 0
+'@
+                        if (-NOT[string]::IsNullOrEmpty($Script)) {
+                            Out-File -FilePath $GetCustomScriptPath -InputObject $Script -Encoding ASCII -Force
+                        }
+                    }
+                    catch {
+                        Write-Log -Level Error "Failed to create the custom .ps1 script for $Type. Action button might not work"
+                        $ErrorMessage = $_.Exception.Message
+                        Write-Log -Level Error -Message "$($ErrorMessage)"
+                    }
+                }
+                else {
+                    Write-Log -Message "$PS1FileName already exist. Doing nothing"
+                }
+            }
+            catch {
+                Write-Log -Level Error "Failed to create the custom .ps1 script for $Type. Action button might not work"
+                $ErrorMessage = $_.Exception.Message
+                Write-Log -Level Error -Message "$($ErrorMessage)"
+            }
+            # Do not run another type; break
+            Break
+        }
+        ToastReboot {
+            try {
+                $CMDFileName = $Type + '.cmd'
+                $CMDFilePath = $CustomScriptPath + '\' + $CMDFileName
+                # Testing to see if the CMD file already exist. 
+                # If it already exist and it was created by another user, permission issues would occur when trying to overwrite it
+                if (-NOT(Test-Path -Path $CMDFilePath)) {
+                    Write-Log -Message "$CMDFileName does not exist - creating it"
+                    try {
+                        New-item -Path $CustomScriptPath -Name $CMDFileName -Force -OutVariable PathInfo | Out-Null
+                    }
+                    catch {
+                        $ErrorMessage = $_.Exception.Message
+                        Write-Log -Level Error -Message "$($ErrorMessage)"                     
+                    }
+                    try {
+                        $GetCustomScriptPath = $PathInfo.FullName
+                        [String]$Script = 'shutdown /r /t 0 /d p:0:0 /c "Toast Notification Reboot"'
+                        if (-NOT[string]::IsNullOrEmpty($Script)) {
+                            Out-File -FilePath $GetCustomScriptPath -InputObject $Script -Encoding ASCII -Force
+                        }
+                    }
+                    catch {
+                        Write-Log -Level Error "Failed to create the custom .cmd script for $Type. Action button might not work"
+                        $ErrorMessage = $_.Exception.Message
+                        Write-Log -Level Error -Message "$($ErrorMessage)"
+                    }
+                }
+                else {
+                    Write-Log -Message "$CMDFileName already exist. Doing nothing"
+                }
+            }
+            catch {
+                Write-Log -Level Error "Failed to create the custom .cmd script for $Type. Action button might not work"
+                $ErrorMessage = $_.Exception.Message
+                Write-Log -Level Error -Message "$($ErrorMessage)"
+            }
+            # Do not run another type; break
+            Break
+        }
+
+        ToastRunPackageID {
+            try {
+                $CMDFileName = $Type + '.cmd'
+                $CMDFilePath = $CustomScriptPath + '\' + $CMDFileName
+                if (-NOT(Test-Path -Path $CMDFilePath)) {
+                    Write-Log -Message "$CMDFileName does not exist - creating it"
+                    try {
+                        New-item -Path $CustomScriptPath -Name $CMDFileName -Force -OutVariable PathInfo | Out-Null
+                    }
+                    catch { 
+                        $ErrorMessage = $_.Exception.Message
+                        Write-Log -Level Error -Message "$($ErrorMessage)"
+                    }
+                    try {
+                        $GetCustomScriptPath = $PathInfo.FullName
+                        [String]$Script = 'powershell.exe -ExecutionPolicy Bypass -NoLogo -NonInteractive -NoProfile -WindowStyle Hidden -File "C:\ProgramData\ToastNotificationScript\ToastRunPackageID.ps1"'
+                        if (-NOT[string]::IsNullOrEmpty($Script)) {
+                            Out-File -FilePath $GetCustomScriptPath -InputObject $Script -Encoding ASCII -Force
+                        }
+                    }
+                    catch {
+                        Write-Log -Level Error "Failed to create the custom .cmd script for $Type. Action button might not work"
+                        $ErrorMessage = $_.Exception.Message
+                        Write-Log -Level Error -Message "$($ErrorMessage)"
+                    }
+                }
+                else {
+                    Write-Log -Message "$CMDFileName already exist. Doing nothing"
+                }
+            }
+            catch {
+                Write-Log -Level Error "Failed to create the custom .cmd script for $Type. Action button might not work"
+                $ErrorMessage = $_.Exception.Message
+                Write-Log -Level Error -Message "$($ErrorMessage)"
+            }
+            try {
+                $PS1FileName = $Type + '.ps1'
+                $PS1FilePath = $CustomScriptPath + '\' + $PS1FileName
+                if (-NOT(Test-Path -Path $PS1FilePath)) {
+                    Write-Log -Message "$PS1FileName does not exist - creating it"
+                    try {
+                        New-item -Path $CustomScriptPath -Name $PS1FileName -Force -OutVariable PathInfo | Out-Null
+                    }
+                    catch { 
+                        $ErrorMessage = $_.Exception.Message
+                        Write-Log -Level Error -Message "$($ErrorMessage)"
+                    }
+                    try {
+                        $GetCustomScriptPath = $PathInfo.FullName
+                        [String]$Script = @'
+$RegistryPath = "HKCU:\SOFTWARE\ToastNotificationScript"
+$PackageID = (Get-ItemProperty -Path $RegistryPath -Name "RunPackageID").RunPackageID
+$SoftwareCenter = New-Object -ComObject "UIResource.UIResourceMgr"
+$ProgramID = "*"
+$SoftwareCenter.ExecuteProgram($ProgramID,$PackageID,$true)
+if (Test-Path -Path "C:\Windows\CCM\ClientUX\SCClient.exe") { Start-Process -FilePath "C:\Windows\CCM\ClientUX\SCClient.exe" -ArgumentList "SoftwareCenter:Page=OSD" -WindowStyle Maximized }
+exit 0
+'@
+                        if (-NOT[string]::IsNullOrEmpty($Script)) {
+                            Out-File -FilePath $GetCustomScriptPath -InputObject $Script -Encoding ASCII -Force
+                        }
+                    }
+                    catch {
+                        Write-Log -Level Error "Failed to create the custom .ps1 script for $Type. Action button might not work"
+                        $ErrorMessage = $_.Exception.Message
+                        Write-Log -Level Error -Message "$($ErrorMessage)"
+                    }
+                }
+                else {
+                    Write-Log -Message "$PS1FileName already exist. Doing nothing"
+                }
+            }
+            catch {
+                Write-Log -Level Error "Failed to create the custom .ps1 script for $Type. Action button might not work"
+                $ErrorMessage = $_.Exception.Message
+                Write-Log -Level Error -Message "$($ErrorMessage)"
+            }
+            # Do not run another type; break
+            Break
+        }
+        ToastRunApplicationID {
+            try {
+                $CMDFileName = $Type + '.cmd'
+                $CMDFilePath = $CustomScriptPath + '\' + $CMDFileName
+                if (-NOT(Test-Path -Path $CMDFilePath)) {
+                    Write-Log -Message "$CMDFileName does not exist - creating it"
+                    try {
+                        New-item -Path $CustomScriptPath -Name $CMDFileName -Force -OutVariable PathInfo | Out-Null
+                    }
+                    catch { 
+                        $ErrorMessage = $_.Exception.Message
+                        Write-Log -Level Error -Message "$($ErrorMessage)"
+                    }
+                    try {
+                        $GetCustomScriptPath = $PathInfo.FullName
+                        [String]$Script = 'powershell.exe -ExecutionPolicy Bypass -NoLogo -NonInteractive -NoProfile -WindowStyle Hidden -File "C:\ProgramData\ToastNotificationScript\ToastRunApplicationID.ps1"'
+                        if (-NOT[string]::IsNullOrEmpty($Script)) {
+                            Out-File -FilePath $GetCustomScriptPath -InputObject $Script -Encoding ASCII -Force
+                        }
+                    }
+                    catch {
+                        Write-Log -Level Error "Failed to create the custom .cmd script for $Type. Action button might not work"
+                        $ErrorMessage = $_.Exception.Message
+                        Write-Log -Level Error -Message "$($ErrorMessage)"
+                    }
+                }
+                else {
+                    Write-Log -Message "$CMDFileName already exist. Doing nothing"
+                }
+            }
+            catch {
+                Write-Log -Level Error "Failed to create the custom .cmd script for $Type. Action button might not work"
+                $ErrorMessage = $_.Exception.Message
+                Write-Log -Level Error -Message "$($ErrorMessage)"
+            }
+            try {
+                $PS1FileName = $Type + '.ps1'
+                $PS1FilePath = $CustomScriptPath + '\' + $PS1FileName
+                if (-NOT(Test-Path -Path $PS1FilePath)) {
+                    Write-Log -Message "$PS1FileName does not exist - creating it"
+                    try {
+                        New-item -Path $CustomScriptPath -Name $PS1FileName -Force -OutVariable PathInfo | Out-Null
+                    }
+                    catch { 
+                        $ErrorMessage = $_.Exception.Message
+                        Write-Log -Level Error -Message "$($ErrorMessage)"
+                    }
+                    try {
+                        $GetCustomScriptPath = $PathInfo.FullName
+                        [String]$Script = @'
+function Trigger-AppInstallation() {
+    param(
+        [Parameter(Mandatory=$true)] 
+        [String]$appID
+    )
+    Begin {
+        $application = (Get-CimInstance -ClassName CCM_Application -Namespace "root\ccm\clientSDK" | Where-Object {$_.Id -eq $appID})
+        $args = @{EnforcePreference = [UINT32] 0
+        Id = "$($application.Id)"
+        IsMachineTarget = $application.IsMachineTarget
+        IsRebootIfNeeded = $false
+        Priority = 'High'
+        Revision = "$($application.Revision)"}
+     }
+    Process {
+        if ($application.InstallState -eq "NotInstalled") {
+            try {
+                Invoke-CimMethod -Namespace "root\ccm\clientSDK" -ClassName CCM_Application -MethodName Install -Arguments $args
+            }
+            catch { }
+        }
+        elseif ($application.InstallState -eq "Installed") {
+            try {
+                Invoke-CimMethod -Namespace "root\ccm\clientSDK" -ClassName CCM_Application -MethodName Repair -Arguments $args
+            }
+            catch { }
+        }
+    }
+    End { }
+}
+$registryPath = "HKCU:\SOFTWARE\ToastNotificationScript"
+$applicationID = (Get-ItemProperty -Path $RegistryPath -Name "RunApplicationID").RunApplicationID
+Trigger-AppInstallation -appID $applicationID
+if (Test-Path -Path "C:\Windows\CCM\ClientUX\SCClient.exe") { Start-Process -FilePath "C:\Windows\CCM\ClientUX\SCClient.exe" -ArgumentList "SoftwareCenter:Page=InstallationStatus" -WindowStyle Maximized };
+exit 0
+'@
+                        if (-NOT[string]::IsNullOrEmpty($Script)) {
+                            Out-File -FilePath $GetCustomScriptPath -InputObject $Script -Encoding ASCII -Force
+                        }
+                    }
+                    catch {
+                        Write-Log -Level Error "Failed to create the custom .ps1 script for $Type. Action button might not work"
+                        $ErrorMessage = $_.Exception.Message
+                        Write-Log -Level Error -Message "$($ErrorMessage)"
+                    }
+                }
+                else {
+                    Write-Log -Message "$PS1FileName already exist. Doing nothing"
+                }
+            }
+            catch {
+                Write-Log -Level Error "Failed to create the custom .ps1 script for $Type. Action button might not work"
+                $ErrorMessage = $_.Exception.Message
+                Write-Log -Level Error -Message "$($ErrorMessage)"
+            }
+            # Do not run another type; break
+            Break
+        }
+    }
+}
+
 ######### GENERAL VARIABLES #########
 # Getting executing directory
 $global:ScriptPath = Split-Path -Parent $MyInvocation.MyCommand.Definition
@@ -526,6 +1116,9 @@ $LogoImageTemp = "$env:TEMP\ToastLogoImage.jpg"
 $HeroImageTemp = "$env:TEMP\ToastHeroImage.jpg"
 # Setting path to local images
 $ImagesPath = "file:///$global:ScriptPath/Images"
+# Getting custom action script location
+$global:CustomScriptPath = "$env:ALLUSERSPROFILE\ToastNotificationScript"
+
 # Testing for prerequisites
 # Testing if script is being run as SYSTEM. This is not supported as the toast notification needs the current user's context
 $isSystem = Test-NTSystem
@@ -533,12 +1126,14 @@ if ($isSystem -eq $True) {
     Write-Log -Message "Aborting script" -Level Warn
     Exit 1
 }
+
 # Test if the script is being run on a supported version of Windows. Windows 10 AND workstation OS is required
 $SupportedWindowsVersion = Get-WindowsVersion
 if ($SupportedWindowsVersion -eq $False) {
     Write-Log -Message "Aborting script" -Level Warn
     Exit 1
 }
+
 # Testing for blockers of toast notifications in Windows
 $WindowsPushNotificationsEnabled = Test-WindowsPushNotificationsEnabled
 # If no config file is set as parameter, use the default. 
@@ -547,6 +1142,7 @@ if (-NOT($Config)) {
     Write-Log -Message "No config file set as parameter. Using local config file"
     $Config = Join-Path ($global:ScriptPath) "config-toast.xml"
 }
+
 # Load config.xml
 # Catering for when config.xml is hosted online on blob storage or similar
 # Loading the config.xml file here is relevant for when used with Endpoint Analytics in Intune
@@ -576,6 +1172,7 @@ if (($Config.StartsWith("https://")) -OR ($Config.StartsWith("http://"))) {
         Exit 1
     }
 }
+
 # Catering for when config.xml is hosted locally or on fileshare
 elseif (-NOT($Config.StartsWith("https://")) -OR (-NOT($Config.StartsWith("http://")))) {
     Write-Log -Message "Specified config file seems hosted [locally or fileshare]. Treating it accordingly"
@@ -624,10 +1221,19 @@ if(-NOT[string]::IsNullOrEmpty($Xml)) {
         $DeadlineContent = $Xml.Configuration.Option | Where-Object {$_.Name -like 'Deadline'} | Select-Object -ExpandProperty 'Value'
         $DynDeadlineEnabled = $Xml.Configuration.Option | Where-Object {$_.Name -like 'DynamicDeadline'} | Select-Object -ExpandProperty 'Enabled'
         $DynDeadlineValue = $Xml.Configuration.Option | Where-Object {$_.Name -like 'DynamicDeadline'} | Select-Object -ExpandProperty 'Value'
+        # Creating Scripts and Protocols
+        # Added in version 2.0.0
+        $CreateScriptsProtocolsEnabled = $Xml.Configuration.Option | Where-Object {$_.Name -like 'CreateScriptsAndProtocols'} | Select-Object -ExpandProperty 'Enabled'
         $RunPackageIDEnabled = $Xml.Configuration.Option | Where-Object {$_.Name -like 'RunPackageID'} | Select-Object -ExpandProperty 'Enabled'
         $RunPackageIDValue = $Xml.Configuration.Option | Where-Object {$_.Name -like 'RunPackageID'} | Select-Object -ExpandProperty 'Value'
         $RunApplicationIDEnabled = $Xml.Configuration.Option | Where-Object {$_.Name -like 'RunApplicationID'} | Select-Object -ExpandProperty 'Enabled'
         $RunApplicationIDValue = $Xml.Configuration.Option | Where-Object {$_.Name -like 'RunApplicationID'} | Select-Object -ExpandProperty 'Value'
+        # ConfigMgr Software Updates
+        # Added in version 2.0.0
+        $RunUpdateIDEnabled = $Xml.Configuration.Option | Where-Object {$_.Name -like 'RunUpdateID'} | Select-Object -ExpandProperty 'Enabled'
+        $RunUpdateIDValue = $Xml.Configuration.Option | Where-Object {$_.Name -like 'RunUpdateID'}| Select-Object -ExpandProperty 'Value'
+        $RunUpdateTitleEnabled = $Xml.Configuration.Option | Where-Object {$_.Name -like 'RunUpdateTitle'} | Select-Object -ExpandProperty 'Enabled'
+        $RunUpdateTitleValue = $Xml.Configuration.Option | Where-Object {$_.Name -like 'RunUpdateTitle'} | Select-Object -ExpandProperty 'Value'
         $SCAppName = $Xml.Configuration.Option | Where-Object {$_.Name -like 'UseSoftwareCenterApp'} | Select-Object -ExpandProperty 'Name'
         $SCAppStatus = $Xml.Configuration.Option | Where-Object {$_.Name -like 'UseSoftwareCenterApp'} | Select-Object -ExpandProperty 'Enabled'
         $PSAppName = $Xml.Configuration.Option | Where-Object {$_.Name -like 'UsePowershellApp'} | Select-Object -ExpandProperty 'Name'
@@ -651,7 +1257,7 @@ if(-NOT[string]::IsNullOrEmpty($Xml)) {
         $SnoozeButtonEnabled = $Xml.Configuration.Option | Where-Object {$_.Name -like 'SnoozeButton'} | Select-Object -ExpandProperty 'Enabled'
         # Multi language support
         if ($MultiLanguageSupport -eq "True") {
-            Write-Log "MultiLanguageSupport set to True. Current language culture is $userCulture. Checking for language support"
+            Write-Log -Message "MultiLanguageSupport set to True. Current language culture is $userCulture. Checking for language support"
             # Check config xml if language support is added for the users culture
             if (-NOT[string]::IsNullOrEmpty($xml.Configuration.$userCulture)) {
                 Write-Log -Message "Support for the users language culture found, localizing text using $userCulture"
@@ -707,7 +1313,6 @@ if ($ToastEnabled -ne "True") {
     Write-Log -Message "Toast notification is not enabled. Please check $Config file"
     Exit 1
 }
-
 # Checking for conflicts in config. Some combinations makes no sense, thus trying to prevent those from happening
 if (($UpgradeOS -eq "True") -AND ($PendingRebootCheck -eq "True")) {
     Write-Log -Level Warn -Message "Error. Conflicting selection in the $Config file" 
@@ -806,6 +1411,75 @@ if (($RunApplicationIDEnabled -eq "True") -AND ($RunPackageIDEnabled -eq "True")
     Write-Log -Level Warn -Message "You should only enable one of the options"
     Exit 1
 }
+if (($RunApplicationIDEnabled -eq "True") -AND ($RunUpdateIDEnabled -eq "True")) {
+    Write-Log -Level Warn -Message "Error. Conflicting selection in the $Config file" 
+    Write-Log -Level Warn -Message "Error. You can't have RunApplicationIDEnabled set to True and RunUpdateIDEnabled set to True at the same time"
+    Write-Log -Level Warn -Message "You should only enable one of the options"
+    Exit 1
+}
+if (($RunUpdateIDEnabled -eq "True") -AND ($RunPackageIDEnabled -eq "True")) {
+    Write-Log -Level Warn -Message "Error. Conflicting selection in the $Config file" 
+    Write-Log -Level Warn -Message "Error. You can't have RunUpdateIDEnabled set to True and RunPackageIDEnabled set to True at the same time"
+    Write-Log -Level Warn -Message "You should only enable one of the options"
+    Exit 1
+}
+# New checks for conflicting selections. Trying to prevent that one option is enabled with the wrong action
+# Example: Having RunUpdatesID enabled and expecting the toast action button to trigger installation of an update, but instead reboots the computer
+# Added in version 2.0.0
+if (($Action -eq "ToastRunApplicationID:") -AND ($RunUpdateIDEnabled -eq "True")) {
+    Write-Log -Level Warn -Message "Error. Conflicting selection in the $Config file" 
+    Write-Log -Level Warn -Message "You are using the toast notification with RunUpdateIDEnabled set to $RunUpdateIDEnabled, but the action button is set to $Action"
+    Write-Log -Level Warn -Message "This seems like an unintended configuration"
+    Exit 1
+}
+if (($Action -eq "ToastRunPackageID:") -AND ($RunUpdateIDEnabled -eq "True")) {
+    Write-Log -Level Warn -Message "Error. Conflicting selection in the $Config file" 
+    Write-Log -Level Warn -Message "You are using the toast notification with RunUpdateIDEnabled set to $RunUpdateIDEnabled, but the action button is set to $Action"
+    Write-Log -Level Warn -Message "This seems like an unintended configuration"
+    Exit 1
+}
+if (($Action -eq "ToastReboot:") -AND ($RunUpdateIDEnabled -eq "True")) {
+    Write-Log -Level Warn -Message "Error. Conflicting selection in the $Config file" 
+    Write-Log -Level Warn -Message "You are using the toast notification with RunUpdateIDEnabled set to $RunUpdateIDEnabled, but the action button is set to $Action"
+    Write-Log -Level Warn -Message "This seems like an unintended configuration"
+    Exit 1
+}
+if (($Action -eq "ToastRunApplicationID:") -AND ($RunPackageIDEnabled -eq "True")) {
+    Write-Log -Level Warn -Message "Error. Conflicting selection in the $Config file" 
+    Write-Log -Level Warn -Message "You are using the toast notification with RunPackageIDEnabled set to $RunPackageIDEnabled, but the action button is set to $Action"
+    Write-Log -Level Warn -Message "This seems like an unintended configuration"
+    Exit 1
+}
+if (($Action -eq "ToastRunUpdateID:") -AND ($RunPackageIDEnabled -eq "True")) {
+    Write-Log -Level Warn -Message "Error. Conflicting selection in the $Config file" 
+    Write-Log -Level Warn -Message "You are using the toast notification with RunPackageIDEnabled set to $RunPackageIDEnabled, but the action button is set to $Action"
+    Write-Log -Level Warn -Message "This seems like an unintended configuration"
+    Exit 1
+}
+if (($Action -eq "ToastReboot:") -AND ($RunPackageIDEnabled -eq "True")) {
+    Write-Log -Level Warn -Message "Error. Conflicting selection in the $Config file" 
+    Write-Log -Level Warn -Message "You are using the toast notification with RunPackageIDEnabled set to $RunPackageIDEnabled, but the action button is set to $Action"
+    Write-Log -Level Warn -Message "This seems like an unintended configuration"
+    Exit 1
+}
+if (($Action -eq "ToastRunPackageID:") -AND ($RunApplicationIDEnabled -eq "True")) {
+    Write-Log -Level Warn -Message "Error. Conflicting selection in the $Config file" 
+    Write-Log -Level Warn -Message "You are using the toast notification with RunApplicationIDEnabled set to $RunApplicationIDEnabled, but the action button is set to $Action"
+    Write-Log -Level Warn -Message "This seems like an unintended configuration"
+    Exit 1
+}
+if (($Action -eq "ToastRunUpdateID:") -AND ($RunApplicationIDEnabled -eq "True")) {
+    Write-Log -Level Warn -Message "Error. Conflicting selection in the $Config file" 
+    Write-Log -Level Warn -Message "You are using the toast notification with RunApplicationIDEnabled set to $RunApplicationIDEnabled, but the action button is set to $Action"
+    Write-Log -Level Warn -Message "This seems like an unintended configuration"
+    Exit 1
+}
+if (($Action -eq "ToastReboot:") -AND ($RunApplicationIDEnabled -eq "True")) {
+    Write-Log -Level Warn -Message "Error. Conflicting selection in the $Config file" 
+    Write-Log -Level Warn -Message "You are using the toast notification with RunApplicationIDEnabled set to $RunApplicationIDEnabled, but the action button is set to $Action"
+    Write-Log -Level Warn -Message "This seems like an unintended configuration"
+    Exit 1
+}
 
 # Downloading images into user's temp folder if images are hosted online
 if (($LogoImageFileName.StartsWith("https://")) -OR ($LogoImageFileName.StartsWith("http://"))) {
@@ -845,6 +1519,25 @@ if (($HeroImageFileName.StartsWith("https://")) -OR ($HeroImageFileName.StartsWi
     else {
         Write-Log -Level Warn -Message "The image supposedly located on $HeroImageFileName is not available"
     }
+}
+
+# Creating custom scripts and protocols if enabled in the config
+if ($CreateScriptsProtocolsEnabled -eq "True") {
+    Write-Log -Message "CreateScriptsAndProtocols set to True. Will create custom scripts and protocols automatically for the logged on user"
+    Write-CustomActionRegistry -ActionType ToastReboot
+    Write-CustomActionRegistry -ActionType ToastRunApplicationID
+    Write-CustomActionRegistry -ActionType ToastRunPackageID
+    Write-CustomActionRegistry -ActionType ToastRunUpdateID
+    Write-CustomActionScript -Type ToastReboot
+    Write-CustomActionScript -Type ToastRunApplicationID
+    Write-CustomActionScript -Type ToastRunPackageID
+    Write-CustomActionScript -Type ToastRunUpdateID
+}
+
+# Running RunUpdateID function
+if ($RunUpdateIDEnabled -eq "True") {
+    Write-Log -Message "RunUpdateID set to True. Will allow execution of Software UpdateID (KB-article number) directly from the toast action button"
+    Write-UpdateIDRegistry
 }
 
 # Running RunApplicationID function
@@ -931,12 +1624,15 @@ if ($GreetGivenName -eq "True") {
     Write-Log -Message "Greeting with given name selected. Replacing HeaderText"
     $Hour = (Get-Date).TimeOfDay.Hours
     if (($Hour -ge 0) -AND ($Hour -lt 12)) {
+        Write-Log -Message "Greeting with $GreetMorningText"
         $Greeting = $GreetMorningText
     }
     elseif (($Hour -ge 12) -AND ($Hour -lt 16)) {
+        Write-Log -Message "Greeting with $GreetAfternoonText"
         $Greeting = $GreetAfternoonText
     }
     else {
+        Write-Log -Message "Greeting with personal greeting: $GreetEveningText"
         $Greeting = $GreetEveningText
     }
     $GivenName = Get-GivenName

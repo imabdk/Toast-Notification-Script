@@ -17,5 +17,5 @@ Blog posts, documentation as well as if any questions, please use: https://www.i
     - If newer version is available from the script, new custom action scripts will be created
       - This allows me to make sure the relevant scripts are in place in case I change something along the way
   - Modified script output of custom script for RunPackageID to pick up Program ID dynamically
-    - Added support for getting deadline date/time dynamically for applications     
-      - Configure DynamicDeadline with the Application ID
+- Added support for getting deadline date/time dynamically for applications     
+  - Configure DynamicDeadline with the Application ID

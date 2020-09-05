@@ -7,6 +7,8 @@ Download the complete Windows 10 Toast Notification Script: https://github.com/i
 Blog posts, documentation as well as if any questions, please use: https://www.imab.dk/windows-10-toast-notification-script/
 
 ## What's New
+ - 2.0.2 - Fixed an error in the custom protocols
+   - The path to the custom scripts was incomplete
 - 2.0.1 - Updated custom action scripts!
   - Moved all custom action scripts into the user's profile in $env:APPDATA\ToastNotificationScript
     - $env:ALLUSERSPROFILE was used previously. This is a bad location if device is used by multiple users due to permission issues

@@ -18,8 +18,8 @@
 	<Option Name="Deadline" Enabled="False" Value="30-09-2019 08:00" />	<!-- Adds an additional group to the toast with text about the deadline of the OSUpgrade -->
 	<Option Name="DynamicDeadline" Enabled="False" Value="KR1008C8" />	<!-- Adds an additional group to the toast with text about the deadline of the OSUpgrade. This will retrieve the deadline of the IPU from WMI -->
 	<Option Name="CreateScriptsAndProtocols" Enabled="True" /> <!-- Automatically create the needed custom scripts and protocols. This removes the need to do scripts and protocols outside of the script -->
-	<Option Name="UseSoftwareCenterApp" Enabled="True" />	<!-- The app in Windows doing the actual notification - can't be both SoftwareCenter and Powershell -->
-	<Option Name="UsePowershellApp" Enabled="False" />	<!-- The app in Windows doing the actual notification - can't be both SoftwareCenter and Powershell -->
+	<Option Name="UseSoftwareCenterApp" Enabled="False" />	<!-- The app in Windows doing the actual notification - can't be both SoftwareCenter and Powershell -->
+	<Option Name="UsePowershellApp" Enabled="True" />	<!-- The app in Windows doing the actual notification - can't be both SoftwareCenter and Powershell -->
 	<Option Name="CustomAudio" Enabled="False" />	<!-- Enable or disable a custom speak scenario, where the text will be read out aloud -->
 	<Option Name="LogoImageName" Value="ToastLogoImageDefault.jpg" />  <!-- File name of the image shown as logo in the toast notoification  -->
 	<Option Name="HeroImageName" Value="ToastHeroImageDefault.jpg" /> <!-- File name of the image shown in the top of the toast notification -->	
@@ -28,16 +28,6 @@
 	<Option Name="SnoozeButton" Enabled="False" /> <!-- Enabling this option will always enable action button and dismiss button -->
 	<Option Name="Scenario" Type="long" />	<!-- Possible values are: reminder | short | long -->
 	<Option Name="Action" Value="ToastReboot:" />	<!-- Action taken when using the Action button. Can be any protocol in Windows -->
-	<CustomActions Enabled="True">
-		<Action Name="LaunchAppRepair">
-			<DetectionScript>
-				Test-Path 'C:\Windows\System32' -ErrorAction Ignore
-			</DetectionScript>
-			<!--This script should always return a boolean True or False to properly evaluate-->
-			<ExecutionScript>
-			</ExecutionScript>
-		</Action>
-	</CustomActions>
 	<Text Option="GreetGivenName" Enabled="True" />	<!-- Displays the toast with a personal greeting using the users given name retrieved from AD. Will try retrieval from WMI of no local AD -->
 	<Text Option="MultiLanguageSupport" Enabled="False" /> <!-- Enable support for multiple languages. If set to True, the toast notification will look for the users language culture within the config file -->
 	<en-US> <!-- Default fallback language. This language will be used if MultiLanguageSupport is set to False or if no matching language is found -->

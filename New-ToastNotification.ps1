@@ -1081,6 +1081,89 @@ exit 0
     }
 }
 
+function Write-FullCustomAction {
+    [CmdletBinding()]
+    param (
+        [Parameter()]
+        [string]
+        $ActionName,
+        [Parameter()]
+        [string]
+        $ScriptDirectory,
+        [Parameter()]
+        [string]
+        $ExecutionScript
+    )
+    # Create CMD File
+        try {
+            $CMDFileName = $ActionName + '.cmd'
+            $CMDFilePath = $ScriptDirectory + '\' + $CMDFileName
+            Write-Log -Level Info -Message "Creating CMD File [$CMDFilePath]"
+            New-item -Path $ScriptDirectory -Name $CMDFileName -Force -ErrorAction Stop -OutVariable PathInfo | Out-Null
+            $GetCustomScriptPath = $PathInfo.FullName
+            Write-Log -Level Info -Message "File created.  Writing content for CMD File [$CMDFilePath]"
+            [String]$Script = "powershell.exe -ExecutionPolicy Bypass -NoLogo -NonInteractive -NoProfile -WindowStyle Hidden -File `"$ScriptDirectory\$ActionName.ps1`""
+            if (-NOT[string]::IsNullOrEmpty($Script)) {
+                Out-File -FilePath $GetCustomScriptPath -InputObject $Script -Encoding ASCII -Force -ErrorAction Stop
+            }
+            Write-Log -Level Info -Message "CMD File [$CMDFilePath] created and content written successfully!"
+        }
+        catch {
+            Write-Log -Level Error "Failed to create or write content to custom CMD script [$CMDFilePath] for action [$ActionName]. Action button will not work."
+            $ErrorMessage = $_.Exception.Message
+            Write-Log -Level Error -Message "Error message: $ErrorMessage"
+        }
+        #Create PS1 File
+        try {
+            $PS1FileName = $ActionName + '.ps1'
+            $PS1FilePath = $ScriptDirectory + '\' + $PS1FileName
+            Write-Log -Level Info -Message "Creating PS1 File [$PS1FilePath]"
+            New-item -Path $ScriptDirectory -Name $PS1FileName -Force -ErrorAction Stop -OutVariable PathInfo | Out-Null
+            $GetCustomScriptPath = $PathInfo.FullName
+            Write-Log -Level Info -Message "File created.  Writing content for PS1 File [$PS1FilePath]"
+            [String]$Script = @"
+            $ExecutionScript
+"@
+            if (-NOT[string]::IsNullOrEmpty($Script)) {
+                Out-File -FilePath $GetCustomScriptPath -InputObject $Script -Encoding ASCII -Force
+            }
+            Write-Log -Level Info -Message "PS1 File [$PS1FilePath] created and content written successfully!"
+        }
+        catch {
+            Write-Log -Level Error "Failed to create or write content to custom PS1 script [$PS1FilePath] for action [$ActionName]. Action button will not work."
+            $ErrorMessage = $_.Exception.Message
+            Write-Log -Level Error -Message "Error message: $ErrorMessage"
+        }
+}
+
+function Write-FullCustomProtocol {
+    [CmdletBinding()]
+    param (
+        [Parameter()]
+        [string]
+        $ActionName,
+        [Parameter()]
+        [string]
+        $ScriptDirectory
+    )
+                # Build out registry for custom action for running packages and task sequences via the action button
+                try {
+                    Write-Log -Level Info -Message "Creating protocol in current user [HKCU:\Software\Classes\$($ActionName)] for action [$ActionName]"
+                    New-Item "HKCU:\Software\Classes\$($ActionName)\shell\open\command" -Force -ErrorAction Stop | Out-Null
+                    New-ItemProperty -LiteralPath "HKCU:\Software\Classes\$($ActionName)" -Name 'URL Protocol' -Value '' -PropertyType String -Force -ErrorAction Stop | Out-Null
+                    New-ItemProperty -LiteralPath "HKCU:\Software\Classes\$($ActionName)" -Name '(default)' -Value "URL:$($ActionName) Protocol" -PropertyType String -Force -ErrorAction Stop | Out-Null
+                    $RegCommandValue = $ScriptDirectory  + '\' + "$($ActionName).cmd"
+                    New-ItemProperty -LiteralPath "HKCU:\Software\Classes\$($ActionName)\shell\open\command" -Name '(default)' -Value $RegCommandValue -PropertyType String -Force -ErrorAction Stop | Out-Null
+                }
+                catch {
+                    Write-Log -Level Error -Message "Failed to create the $ActionName custom protocol in HKCU\Software\Classes. Action button might not work"
+                    $ErrorMessage = $_.Exception.Message
+                    Write-Log -Level Error -Message "Error message: $ErrorMessage"
+                }
+    
+}
+
+
 ######### GENERAL VARIABLES #########
 # Global variables
 # Setting global script version
@@ -1220,6 +1303,7 @@ if(-NOT[string]::IsNullOrEmpty($Xml)) {
         $PendingRebootUptime = $Xml.Configuration.Feature | Where-Object {$_.Name -like 'PendingRebootUptime'} | Select-Object -ExpandProperty 'Enabled'
         $PendingRebootCheck = $Xml.Configuration.Feature | Where-Object {$_.Name -like 'PendingRebootCheck'} | Select-Object -ExpandProperty 'Enabled'
         $ADPasswordExpiration = $Xml.Configuration.Feature | Where-Object {$_.Name -like 'ADPasswordExpiration'} | Select-Object -ExpandProperty 'Enabled'
+        $CustomActionsEnabled = $Xml.Configuration.CustomActions.Enabled
         # Load Toast Notification options   
         $PendingRebootUptimeTextEnabled = $Xml.Configuration.Option | Where-Object {$_.Name -like 'PendingRebootUptimeText'} | Select-Object -ExpandProperty 'Enabled'
         $MaxUptimeDays = $Xml.Configuration.Option | Where-Object {$_.Name -like 'MaxUptimeDays'} | Select-Object -ExpandProperty 'Value'
@@ -1261,6 +1345,10 @@ if(-NOT[string]::IsNullOrEmpty($Xml)) {
         $Action = $Xml.Configuration.Option | Where-Object {$_.Name -like 'Action'} | Select-Object -ExpandProperty 'Value'
         $GreetGivenName = $Xml.Configuration.Text | Where-Object {$_.Option -like 'GreetGivenName'} | Select-Object -ExpandProperty 'Enabled'
         $MultiLanguageSupport = $Xml.Configuration.Text | Where-Object {$_.Option -like 'MultiLanguageSupport'} | Select-Object -ExpandProperty 'Enabled'
+        # Load Custom Action Details
+        $CustomDetection = $Xml.Configuration.CustomActions.DetectionScript
+        $CustomAction = $Xml.Configuration.CustomActions.Action
+        $CustomActionName = $Xml.Configuration.CustomActions.Action.Name
         # Load Toast Notification buttons
         $ActionButtonEnabled = $Xml.Configuration.Option | Where-Object {$_.Name -like 'ActionButton'} | Select-Object -ExpandProperty 'Enabled'
         $DismissButtonEnabled = $Xml.Configuration.Option | Where-Object {$_.Name -like 'DismissButton'} | Select-Object -ExpandProperty 'Enabled'
@@ -1490,6 +1578,13 @@ if (($Action -eq "ToastReboot:") -AND ($RunApplicationIDEnabled -eq "True")) {
     Write-Log -Level Error -Message "This seems like an unintended configuration"
     Exit 1
 }
+# New checks for Custom Actions
+if (($CustomActionsEnabled -eq "True") -AND (($UpgradeOS -eq "True") -or ($PendingRebootUptime -eq "True") -or ($PendingRebootCheck -eq "True") -or ($ADPasswordExpiration -eq "True"))){
+    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
+    Write-Log -Level Error -Message "Error. You can't have CustomActionsEnabled set to True and other features set to True at the same time"
+    Write-Log -Level Error -Message "You should only enable one of the features or CustomActions"
+    Exit 1
+}
 
 # Downloading images into user's temp folder if images are hosted online
 if (($LogoImageFileName.StartsWith("https://")) -OR ($LogoImageFileName.StartsWith("http://"))) {
@@ -1612,6 +1707,35 @@ if ($PendingRebootUptime -eq "True") {
     $Uptime = Get-DeviceUptime
     Write-Log -Message "PendingRebootUptime set to True. Checking for device uptime. Current uptime is: $Uptime days"
 }
+
+# Determin the results of custom actions, if enabled.
+If ($CustomActionsEnabled -eq "True"){
+    # convert the string to a scriptblock
+    $DetectionScript = [Scriptblock]::Create($CustomDetection)
+    write-log -Message "Running custom detection script..."
+    Try {
+        #Run the script block.  It should return a boolean true or false.
+        $CustomDetectionResult = Invoke-Command -ScriptBlock $DetectionScript
+        Write-Log -Message "Custom detection script seemed to execute successfully and returned [$CustomDetectionResult]"
+    }
+    Catch {
+        Write-Log -Level Error -Message "Custom detection script seemed to execute unsuccessfully and returned [$CustomDetectionResult]"
+        Write-Log -Level Warn -Message "Setting Result to false because of failure."
+        $CustomDetectionResult = $False
+    }
+
+    If($CustomDetectionResult -eq $true) {
+        IF ($CustomAction.ExecutionScript.Enabled -eq "True"){
+            Write-Log -Message "Custom Action Execution Script set to 'True'.  Creating protocol and action script"
+            Write-FullCustomProtocol -ActionName $CustomActionName -ScriptDirectory $global:CustomScriptsPath
+            Write-FullCustomAction -ActionName $CustomActionName -ScriptDirectory $global:CustomScriptsPath -ExecutionScript $CustomAction.ExecutionScript.'#text'
+        } else {
+            Write-Log -Message "Custom Action Execution Script NOT set to 'True'.  Skipping creating protocol and action script"
+        }
+    }
+}
+
+
 
 # Check for required entries in registry for when using Software Center as application for the toast
 if ($SCAppStatus -eq "True") {
@@ -1978,14 +2102,24 @@ if (($ADPasswordExpiration -eq "True") -AND ($ADPasswordExpirationResult -eq $Tr
 else {
     Write-Log -Level Warn -Message "Conditions for displaying toast notification for ADPasswordExpiration are not fulfilled"
 }
+# Toast Used for Custom Action
+if (($CustomActionsEnabled -eq "True") -AND ($CustomDetectionResult -eq $True)) {
+    Write-Log -Message "Toast notification is used in regards to CustomActionsEnabled. CustomDetection returned [$CustomDetectionResult]"
+    Display-ToastNotification
+    # Stopping script. No need to accidently run further toasts
+    break
+}
+else {
+    Write-Log -Level Warn -Message "Conditions for displaying toast notification for CustomActionsEnabled are not fulfilled. CustomDetection returned [$CustomDetectionResult]"
+}
 
 # Toast not used for either OS upgrade or Pending reboot OR ADPasswordExpiration. Run this if all features are set to false in config.xml
-if (($UpgradeOS -ne "True") -AND ($PendingRebootCheck -ne "True") -AND ($PendingRebootUptime -ne "True") -AND ($ADPasswordExpiration -ne "True")) {
+if (($UpgradeOS -ne "True") -AND ($PendingRebootCheck -ne "True") -AND ($PendingRebootUptime -ne "True") -AND ($ADPasswordExpiration -ne "True") -AND ($CustomActionsEnabled -ne "True")) {
     Write-Log -Message "Toast notification is not used in regards to OS upgrade OR Pending Reboots OR ADPasswordExpiration. Displaying default toast"
     Display-ToastNotification
     # Stopping script. No need to accidently run further toasts
     break
 }
 else {
-    Write-Log -Level Warn -Message "Conditions for displaying default toast notification are not fulfilled"
+    Write-Log -Level Warn -Message "Conditions for displaying default toast notification are not fulfilled. Either One of the other scenarios match or, CustomActionsEnabled is set to true."
 }

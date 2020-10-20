@@ -24,12 +24,12 @@
 	<Option Name="LogoImageName" Value="ToastLogoImageDefault.jpg" />  <!-- File name of the image shown as logo in the toast notoification  -->
 	<Option Name="HeroImageName" Value="ToastHeroImageDefault.jpg" /> <!-- File name of the image shown in the top of the toast notification -->	
 	<Option Name="ActionButton" Enabled="True" />	<!-- Enables or disables the action button. -->
-	<Option Name="ActionButton2" Enabled="False" />	<!-- Enables or disables the action button. -->
+	<Option Name="Action2Button" Enabled="True" />	<!-- Enables or disables the action button. -->
 	<Option Name="DismissButton" Enabled="True" />	<!-- Enables or disables the dismiss button. -->
 	<Option Name="SnoozeButton" Enabled="False" /> <!-- Enabling this option will always enable action button and dismiss button -->
 	<Option Name="Scenario" Type="reminder" />	<!-- Possible values are: reminder | short | long -->
 	<Option Name="Action" Value="LaunchAppRepair:" />	<!-- Action taken when using the Action button. Can be any protocol in Windows -->
-	<Option Name="Action2" Value="ToastReboot:" />	<!-- Action taken when using the Action button. Can be any protocol in Windows -->
+	<Option Name="Action2" Value="https://wetterssource.com" />	<!-- Action taken when using the Action button. Can be any protocol in Windows -->
 	<CustomActions Enabled="true">
         <DetectionScript>
             $PathExists = Test-Path 'C:\Windows\System32' -ErrorAction Ignore
@@ -88,6 +88,7 @@ $ToastXml.LoadXml($Toast.OuterXml)
         <Text Name="ADPasswordExpirationText">Your password will expire on: </Text> <!-- Text used if the ADPasswordExpirationText Option is enabled -->
         <Text Name="CustomAudioTextToSpeech">Hey you - wake up. Your computer needs to restart. Do it now.</Text> <!-- Text to speech used if the CustomAudioTextToSpeech Option is enabled -->
         <Text Name="ActionButton">Do it!</Text>  <!-- Text on the ActionButton if enabled -->
+        <Text Name="Action2Button">Do More</Text>  <!-- Text on the ActionButton if enabled -->
         <Text Name="DismissButton">Later</Text> <!-- Text on the DismissButton if enabled -->
         <Text Name="SnoozeButton">Snooze</Text> <!-- Text on the SnoozeButton if enabled -->
         <Text Name="AttributionText">www.imab.dk</Text>

@@ -1343,6 +1343,7 @@ if(-NOT[string]::IsNullOrEmpty($Xml)) {
         }
         $Scenario = $Xml.Configuration.Option | Where-Object {$_.Name -like 'Scenario'} | Select-Object -ExpandProperty 'Type'
         $Action = $Xml.Configuration.Option | Where-Object {$_.Name -like 'Action'} | Select-Object -ExpandProperty 'Value'
+        $Action2 = $Xml.Configuration.Option | Where-Object {$_.Name -like 'Action2'} | Select-Object -ExpandProperty 'Value'
         $GreetGivenName = $Xml.Configuration.Text | Where-Object {$_.Option -like 'GreetGivenName'} | Select-Object -ExpandProperty 'Enabled'
         $MultiLanguageSupport = $Xml.Configuration.Text | Where-Object {$_.Option -like 'MultiLanguageSupport'} | Select-Object -ExpandProperty 'Enabled'
         # Load Custom Action Details
@@ -1351,6 +1352,7 @@ if(-NOT[string]::IsNullOrEmpty($Xml)) {
         $CustomActionName = $Xml.Configuration.CustomActions.Action.Name
         # Load Toast Notification buttons
         $ActionButtonEnabled = $Xml.Configuration.Option | Where-Object {$_.Name -like 'ActionButton'} | Select-Object -ExpandProperty 'Enabled'
+        $Action2ButtonEnabled = $Xml.Configuration.Option | Where-Object {$_.Name -like 'Action2Button'} | Select-Object -ExpandProperty 'Enabled'
         $DismissButtonEnabled = $Xml.Configuration.Option | Where-Object {$_.Name -like 'DismissButton'} | Select-Object -ExpandProperty 'Enabled'
         $SnoozeButtonEnabled = $Xml.Configuration.Option | Where-Object {$_.Name -like 'SnoozeButton'} | Select-Object -ExpandProperty 'Enabled'
         # Multi language support
@@ -1381,6 +1383,7 @@ if(-NOT[string]::IsNullOrEmpty($Xml)) {
         $ADPasswordExpirationTextValue = $XmlLang.Text | Where-Object {$_.Name -like 'ADPasswordExpirationText'} | Select-Object -ExpandProperty '#text'
         $CustomAudioTextToSpeech = $XmlLang.Text | Where-Object {$_.Name -like 'CustomAudio'} | Select-Object -ExpandProperty '#text'
         $ActionButtonContent = $XmlLang.Text | Where-Object {$_.Name -like 'ActionButton'} | Select-Object -ExpandProperty '#text'
+        $Action2ButtonContent = $XmlLang.Text | Where-Object {$_.Name -like 'Action2Button'} | Select-Object -ExpandProperty '#text'
         $DismissButtonContent = $XmlLang.Text | Where-Object {$_.Name -like 'DismissButton'} | Select-Object -ExpandProperty '#text'
         $SnoozeButtonContent = $XmlLang.Text | Where-Object {$_.Name -like 'SnoozeButton'} | Select-Object -ExpandProperty '#text'
         $AttributionText = $XmlLang.Text | Where-Object {$_.Name -like 'AttributionText'} | Select-Object -ExpandProperty '#text'
@@ -1583,6 +1586,12 @@ if (($CustomActionsEnabled -eq "True") -AND (($UpgradeOS -eq "True") -or ($Pendi
     Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
     Write-Log -Level Error -Message "Error. You can't have CustomActionsEnabled set to True and other features set to True at the same time"
     Write-Log -Level Error -Message "You should only enable one of the features or CustomActions"
+    Exit 1
+}
+if (($ActionButtonEnabled -ne "True") -AND ($Action2ButtonEnabled -eq "True")){
+    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
+    Write-Log -Level Error -Message "Error. You can't have Action2Button enabled and ActionButton not enabled."
+    Write-Log -Level Error -Message "ActionButton must be enabled for Action2Button to be enabled. Check your config"
     Exit 1
 }
 
@@ -1800,7 +1809,7 @@ if ($GreetGivenName -eq "True") {
 
 # Formatting the toast notification XML
 # Create the default toast notification XML with action button and dismiss button
-if (($ActionButtonEnabled -eq "True") -AND ($DismissButtonEnabled -eq "True")) {
+if (($ActionButtonEnabled -eq "True") -AND ($Action2ButtonEnabled -ne "True") -AND ($DismissButtonEnabled -eq "True")) {
     Write-Log -Message "Creating the xml for displaying both action button and dismiss button"
 [xml]$Toast = @"
 <toast scenario="$Scenario">
@@ -1835,8 +1844,45 @@ if (($ActionButtonEnabled -eq "True") -AND ($DismissButtonEnabled -eq "True")) {
 "@
 }
 
+# Create the default toast notification XML with action button and dismiss button
+if (($Action2ButtonEnabled -eq "True") -AND ($ActionButtonEnabled -eq "True") -AND ($DismissButtonEnabled -eq "True")) {
+    Write-Log -Message "Creating the xml for displaying both action button and dismiss button"
+[xml]$Toast = @"
+<toast scenario="$Scenario">
+    <visual>
+    <binding template="ToastGeneric">
+        <image placement="hero" src="$HeroImage"/>
+        <image id="1" placement="appLogoOverride" hint-crop="circle" src="$LogoImage"/>
+        <text placement="attribution">$AttributionText</text>
+        <text>$HeaderText</text>
+        <group>
+            <subgroup>
+                <text hint-style="title" hint-wrap="true" >$TitleText</text>
+            </subgroup>
+        </group>
+        <group>
+            <subgroup>     
+                <text hint-style="body" hint-wrap="true" >$BodyText1</text>
+            </subgroup>
+        </group>
+        <group>
+            <subgroup>     
+                <text hint-style="body" hint-wrap="true" >$BodyText2</text>
+            </subgroup>
+        </group>
+    </binding>
+    </visual>
+    <actions>
+        <action activationType="protocol" arguments="$Action" content="$ActionButtonContent" />
+        <action activationType="protocol" arguments="$Action2" content="$Action2ButtonContent" />
+        <action activationType="system" arguments="dismiss" content="$DismissButtonContent"/>
+    </actions>
+</toast>
+"@
+}
+
 # NO action button and NO dismiss button
-if (($ActionButtonEnabled -ne "True") -AND ($DismissButtonEnabled -ne "True")) {
+if (($ActionButtonEnabled -ne "True") -AND ($Action2ButtonEnabled -ne "True") -AND ($DismissButtonEnabled -ne "True")) {
     Write-Log -Message "Creating the xml for no action button and no dismiss button"
 [xml]$Toast = @"
 <toast scenario="$Scenario">
@@ -1870,7 +1916,7 @@ if (($ActionButtonEnabled -ne "True") -AND ($DismissButtonEnabled -ne "True")) {
 }
 
 # Action button and NO dismiss button
-if (($ActionButtonEnabled -eq "True") -AND ($DismissButtonEnabled -ne "True")) {
+if (($ActionButtonEnabled -eq "True") -AND ($Action2ButtonEnabled -ne "True") -AND ($DismissButtonEnabled -ne "True")) {
     Write-Log -Message "Creating the xml for no dismiss button"
 [xml]$Toast = @"
 <toast scenario="$Scenario">
@@ -1905,7 +1951,7 @@ if (($ActionButtonEnabled -eq "True") -AND ($DismissButtonEnabled -ne "True")) {
 }
 
 # Dismiss button and NO action button
-if (($ActionButtonEnabled -ne "True") -AND ($DismissButtonEnabled -eq "True")) {
+if (($ActionButtonEnabled -ne "True") -AND ($Action2ButtonEnabled -ne "True") -AND ($DismissButtonEnabled -eq "True")) {
     Write-Log -Message "Creating the xml for no action button"
 [xml]$Toast = @"
 <toast scenario="$Scenario">

@@ -494,7 +494,7 @@ function Get-CMUpdate() {
                 1 { $EvaluationState = 'Available' }
                 2 { $EvaluationState = 'Submitted' }
                 7 { $EvaluationState = 'Installing' }
-                8 { $EvaluationStatet = 'Reboot' }
+                8 { $EvaluationState = 'Reboot' }
                 9 { $EvaluationState = 'Reboot' }
                 13 { $EvaluationState = 'Error' }
             }

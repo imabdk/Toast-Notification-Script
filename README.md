@@ -1,23 +1,21 @@
 # Toast Notification Script
 
-## Current version: 2.0.2
+## Current version: 2.1.0
 
-Download the complete Windows 10 Toast Notification Script: https://github.com/imabdk/Toast-Notification-Script/blob/master/ToastNotificationScript2.0.2.zip
+Download the complete Windows 10 Toast Notification Script: https://github.com/imabdk/Toast-Notification-Script/blob/master/ToastNotificationScript2.1.0.zip
 
 Blog posts, documentation as well as if any questions, please use: https://www.imab.dk/windows-10-toast-notification-script/
 
 ## What's New
- - 2.0.2 - Fixed an error in the custom protocols
-   - The path to the custom scripts was incomplete
-- 2.0.1 - Updated custom action scripts!
-  - Moved all custom action scripts into the user's profile in $env:APPDATA\ToastNotificationScript
-    - $env:ALLUSERSPROFILE was used previously. This is a bad location if device is used by multiple users due to permission issues
-  - Updated all custom action scripts to invoke their respective action via WMI
-    - Rewritten all custom action scripts
-  - Added logic allowing new custom action scripts to be created if necessary
-    - Now checks script version in registry
-    - If newer version is available from the script, new custom action scripts will be created
-      - This allows me to make sure the relevant scripts are in place in case I change something along the way
-  - Modified script output of custom script for RunPackageID to pick up Program ID dynamically
-- Added support for getting deadline date/time dynamically for applications     
-  - Configure DynamicDeadline with the Application ID
+ - 2.1.0 - Added a second action button: ActionButton2
+   - This allows you to have 2 separate actions. Example: Action1 starts a task sequence, action2 sends the user to a web page for more info
+   - This will require new config.xml files
+  - Reworked Get-GivenName function
+    - Now looks for given name in 1) local Active Directory 2) with WMI and the ConfigMgr client 3) directly in registry
+    - Now checks 3 places for given name, and if no given name found at all, a placeholder will be used
+  - Fixed CustomAudioToSpeech option
+    - This part haven't worked for a while it seems
+    - Only works properly with en-US language
+  - Added Enable-WindowsPushNotifications function // Thank you @ Trevor Jones: https://smsagent.blog/2020/11/12/prevent-users-from-disabling-toast-notifications-can-it-be-done/
+    - This will force enable Windows toast notification for the logged on user, if generally disabled
+    - A Windows service will be restarted in the process in the context of the user

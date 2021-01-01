@@ -23,13 +23,13 @@
 	<Option Name="CustomAudio" Enabled="False" />	<!-- Enable or disable a custom speak scenario, where the text will be read out aloud -->
 	<Option Name="LogoImageName" Value="ToastLogoImageDefault.jpg" />  <!-- File name of the image shown as logo in the toast notoification  -->
 	<Option Name="HeroImageName" Value="ToastHeroImageDefault.jpg" /> <!-- File name of the image shown in the top of the toast notification -->	
-	<Option Name="ActionButton" Enabled="True" />	<!-- Enables or disables the action button. -->
-	<Option Name="Action2Button" Enabled="True" />	<!-- Enables or disables the action button. -->
+	<Option Name="ActionButton1" Enabled="True" />	<!-- Enables or disables the action button 1. -->
+	<Option Name="ActionButton2" Enabled="True" />	<!-- Enables or disables the action button 2. -->
 	<Option Name="DismissButton" Enabled="True" />	<!-- Enables or disables the dismiss button. -->
 	<Option Name="SnoozeButton" Enabled="False" /> <!-- Enabling this option will always enable action button and dismiss button -->
 	<Option Name="Scenario" Type="reminder" />	<!-- Possible values are: reminder | short | long -->
-	<Option Name="Action" Value="LaunchAppRepair:" />	<!-- Action taken when using the Action button. Can be any protocol in Windows -->
-	<Option Name="Action2" Value="https://wetterssource.com" />	<!-- Action taken when using the Action button. Can be any protocol in Windows -->
+	<Option Name="Action1" Value="LaunchAppRepair:" />	<!-- Action taken when using the Action button 1. Can be any protocol in Windows -->
+	<Option Name="Action2" Value="https://wetterssource.com" />	<!-- Action taken when using the Action button 2. Can be any protocol in Windows -->
 	<CustomActions Enabled="true">
         <DetectionScript>
             $PathExists = Test-Path 'C:\Windows\System32' -ErrorAction Ignore
@@ -87,8 +87,8 @@ $ToastXml.LoadXml($Toast.OuterXml)
         <Text Name="PendingRebootCheckText">Reason: Pending reboots was found in registry or WMI.</Text> <!-- Text used if the PendingRebootUptimeText Option is enabled -->
         <Text Name="ADPasswordExpirationText">Your password will expire on: </Text> <!-- Text used if the ADPasswordExpirationText Option is enabled -->
         <Text Name="CustomAudioTextToSpeech">Hey you - wake up. Your computer needs to restart. Do it now.</Text> <!-- Text to speech used if the CustomAudioTextToSpeech Option is enabled -->
-        <Text Name="ActionButton">Do it!</Text>  <!-- Text on the ActionButton if enabled -->
-        <Text Name="Action2Button">Do More</Text>  <!-- Text on the ActionButton if enabled -->
+        <Text Name="ActionButton1">Do it!</Text>  <!-- Text on the ActionButton1 if enabled -->
+        <Text Name="ActionButton2">Do More</Text>  <!-- Text on the ActionButton2 if enabled -->
         <Text Name="DismissButton">Later</Text> <!-- Text on the DismissButton if enabled -->
         <Text Name="SnoozeButton">Snooze</Text> <!-- Text on the SnoozeButton if enabled -->
         <Text Name="AttributionText">www.imab.dk</Text>

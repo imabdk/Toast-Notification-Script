@@ -14,7 +14,7 @@
 
 .NOTES
     Filename: New-ToastNotification.ps1
-    Version: 2.0.2
+    Version: 2.1.0
     Author: Martin Bengtsson
     Blog: www.imab.dk
     Twitter: @mwbengtsson
@@ -110,7 +110,20 @@
                 - Configure DynamicDeadline with the Application ID
 
     2.0.2 -   Fixed an error in the custom protocols
-                - The path to the custom scripts was incomplete  
+                - The path to the custom scripts was incomplete
+
+    2.1.0 -   Added a second action button: ActionButton2
+                - This allows you to have 2 separate actions. Example: Action1 starts a task sequence, action2 sends the user to a web page for more info
+                - This will require new config.xml files
+              Reworked Get-GivenName function
+                - Now looks for given name in 1) local Active Directory 2) with WMI and the ConfigMgr client 3) directly in registry
+                    - Now checks 3 places for given name, and if no given name found at all, a placeholder will be used
+              Fixed CustomAudioToSpeech option
+                - This part haven't worked for a while it seems
+                - Only works properly with en-US language
+              Added Enable-WindowsPushNotifications function // Thank you @ Trevor Jones: https://smsagent.blog/2020/11/12/prevent-users-from-disabling-toast-notifications-can-it-be-done/
+                - This will force enable Windows toast notification for the logged on user, if generally disabled
+                    - A Windows service will be restarted in the process in the context of the user
               
 
 .LINK
@@ -133,21 +146,19 @@ function Write-Log() {
         [ValidateNotNullOrEmpty()]
         [Alias("LogContent")]
         [string]$Message,
-
         [Parameter(Mandatory=$false)]
         [Alias('LogPath')]
-        [string]$Path="$env:APPDATA\ToastNotificationScript\New-ToastNotification.log",
-
+        [string]$Path = "$env:APPDATA\ToastNotificationScript\New-ToastNotification.log",
         [Parameter(Mandatory=$false)]
         [ValidateSet("Error","Warn","Info")]
-        [string]$Level="Info"
+        [string]$Level = "Info"
     )
     Begin {
         # Set VerbosePreference to Continue so that verbose messages are displayed.
         $VerbosePreference = 'Continue'
     }
     Process {
-		if ((Test-Path $Path)) {
+		if (Test-Path $Path) {
 			$LogSize = (Get-Item -Path $Path).Length/1MB
 			$MaxLogSize = 5
 		}
@@ -197,10 +208,12 @@ function Test-PendingRebootRegistry() {
     $FileRebootKey = Get-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager" -Name PendingFileRenameOperations -ErrorAction Ignore
     if (($CBSRebootKey -ne $null) -OR ($WURebootKey -ne $null) -OR ($FileRebootKey -ne $null)) {
         Write-Log -Message "Check returned TRUE on ANY of the registry checks: Reboot is pending!"
-        return $true
+        $true
     }
-    Write-Log -Message "Check returned FALSE on ANY of the registry checks: Reboot is NOT pending!"
-    return $false
+    else {
+        Write-Log -Message "Check returned FALSE on ANY of the registry checks: Reboot is NOT pending!"
+        $false
+    }
 }
 
 # Create Pending Reboot function for WMI via ConfigMgr client
@@ -210,16 +223,18 @@ function Test-PendingRebootWMI() {
         Write-Log -Message "Computer has ConfigMgr client installed - checking for pending reboots in WMI"
         $Util = [wmiclass]"\\.\root\ccm\clientsdk:CCM_ClientUtilities"
         $Status = $Util.DetermineIfRebootPending()
-        if (($Status -ne $null) -AND ($Status.RebootPending)) {
+        if (($Status -ne $null) -AND ($Status.RebootPending -eq $True)) {
             Write-Log -Message "Check returned TRUE on checking WMI for pending reboot: Reboot is pending!"
-            return $true
+            $true
         }
-        Write-Log -Message "Check returned FALSE on checking WMI for pending reboot: Reboot is NOT pending!"
-        return $false
+        else {
+            Write-Log -Message "Check returned FALSE on checking WMI for pending reboot: Reboot is NOT pending!"
+            $false
+        }
     }
     else {
-        Write-Log -Message "Computer has no ConfigMgr client installed - skipping checking WMI for pending reboots" -Level Error
-        return $false
+        Write-Log -Level Error -Message "Computer has no ConfigMgr client installed - skipping checking WMI for pending reboots"
+        $false
     }
 }
 
@@ -241,43 +256,55 @@ function Get-GivenName() {
         $PrincipalContext.Dispose()
     }
     catch [System.Exception] {
-        Write-Log -Message "$_." -Level Error
+        Write-Log -Level Error -Message "$_"
     }
-    if ($GivenName) {
+    if (-NOT[string]::IsNullOrEmpty($GivenName)) {
         Write-Log -Message "Given name retrieved from Active Directory: $GivenName"
         $GivenName
     }
-    elseif (-NOT($GivenName)) {
-        Write-Log -Message "Given name not found in AD or no local AD available. Continuing looking for given name elsewhere"
+    elseif ([string]::IsNullOrEmpty($GivenName)) {
+        Write-Log -Message "Given name not found in AD or no local AD is available. Continuing looking for given name elsewhere"
         if (Get-Service -Name ccmexec -ErrorAction SilentlyContinue) {
-            Write-Log -Message "Looking for given name in WMI with CCM client"
+            Write-Log -Message "Looking for logged on user's SID in WMI with CCM client"
             $LoggedOnSID = Get-CimInstance -Namespace ROOT\CCM -Class CCM_UserLogonEvents -Filter "LogoffTime=null" | Select -ExpandProperty UserSID
             if ($LoggedOnSID.GetType().IsArray) {
-                Write-Log -Message "Multiple SID's found. Skipping"
-                $GivenName = ""
-                $GivenName
+                Write-Log -Message "Multiple SID's found logged on. Skipping"
+                $GivenName = $null
             }
             else {
 	            $RegKey = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Authentication\LogonUI\SessionData"
 	            $DisplayName = (Get-ChildItem -Path $RegKey | Where-Object {$_.GetValue("LoggedOnUserSID") -eq $LoggedOnSID} | Select-Object -First 1).GetValue("LoggedOnDisplayName")
 		        if ($DisplayName) {
-                    Write-Log -Message "Given name found in WMI with the CCM client: $GivenName"
-			        $GivenName = $DisplayName.Split()[0].Trim()
-                    $GivenName
+                    $GivenName = $DisplayName.Split()[0].Trim()
+                    Write-Log -Message "Given name found matching logged on user SID: $GivenName"
+			        $GivenName
 		        }
 		        else {
-			        $GivenName = ""
-                    $GivenName
+			        $GivenName = $null
 		        }
             }
         }
     }
-    elseif (-NOT($GivenName)) {
-        # More options for given name here
+    # This is the last resort of trying to find a given name. This part will be used if device is not joined to a local AD, and is not having the configmgr client installed
+    if ([string]::IsNullOrEmpty($GivenName)) {
+        Write-Log -Message "Given name still not found. Continuing looking for given name directly in registry"
+        $RegKey = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Authentication\LogonUI"
+        if ((Get-ItemProperty $RegKey).LastLoggedOnDisplayName) {
+            $LoggedOnUserDisplayName = Get-Itemproperty -Path $RegKey -Name "LastLoggedOnDisplayName" | Select-Object -ExpandProperty LastLoggedOnDisplayName
+            if (-NOT[string]::IsNullOrEmpty($LoggedOnUserDisplayName)) {
+                $DisplayName = $LoggedOnUserDisplayName.Split(" ")
+                $GivenName = $DisplayName[0]
+                Write-Log -Message "Given name found directly in registry: $GivenName"
+                $GivenName
+            }
+        }
+        else {
+            $GivenName = $null
+        }
     }
-    else {
+    if ([string]::IsNullOrEmpty($GivenName)) {
         Write-Log -Message "No given name found. Using nothing as placeholder"
-        $GivenName = ""
+        $GivenName = $null
         $GivenName
     }
 }
@@ -305,20 +332,31 @@ function Get-WindowsVersion() {
 function Test-WindowsPushNotificationsEnabled() {
     $ToastEnabledKey = (Get-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\PushNotifications" -Name ToastEnabled -ErrorAction Ignore).ToastEnabled
     if ($ToastEnabledKey -eq "1") {
-        Write-Log -Message "Toast notifications are enabled in Windows"
+        Write-Log -Message "Toast notifications for the logged on user are enabled in Windows"
         $true
     }
     elseif ($ToastEnabledKey -eq "0") {
-        Write-Log -Level Error -Message "Toast notifications are not enabled in Windows. The script will run, but toasts might not be displayed"
-        $false
-    }
-    else {
-        Write-Log -Message "The registry key for determining if toast notifications are enabled does not exist. The script will run, but toasts might not be displayed"
+        Write-Log -Level Error -Message "Toast notifications for the logged on user are not enabled in Windows. The script will try to enable toast notifications for the logged on user"
         $false
     }
 }
 
-# Create function for testing for local Active Directory password expiration.
+# Create Enable-WindowsPushNotifications
+# This is used to re-enable toast notifications if the user disabled them generally in Windows
+function Enable-WindowsPushNotifications() {
+    $ToastEnabledKeyPath = "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\PushNotifications"
+    Write-Log -Message "Trying to enable toast notifications for the logged on user"
+    try {
+        Set-ItemProperty -Path $ToastEnabledKeyPath -Name ToastEnabled -Value 1 -Force
+        Get-Service -Name WpnUserService** | Restart-Service -Force
+        Write-Log -Message "Successfully enabled toast notifications for the logged on user"
+    }
+    catch {
+        Write-Log -Level Error -Message "Failed to enable toast notifications for the logged on user. Toast notifications will probably not be displayed"
+    }
+}
+
+# Create function for testing for local Active Directory password expiration
 # Thank you @ Andrew Wells :-)
 function Get-ADPasswordExpiration([string]$fADPasswordExpirationDays) {
     Write-Log -Message "Running Get-ADPasswordExpiration function"
@@ -331,7 +369,7 @@ function Get-ADPasswordExpiration([string]$fADPasswordExpirationDays) {
         $PrincipalContext.Dispose()
     }
     catch [System.Exception] {
-        Write-Log -Message "$_." -Level Error
+        Write-Log -Level Error -Message "$_"
     }
     if (($SamAccountName) -AND ($DomainName)) {
         Write-Log -Message "SamAccountName found: $SamAccountName and DomainName found: $DomainName. Continuing looking for AD password expiration date"
@@ -343,7 +381,7 @@ function Get-ADPasswordExpiration([string]$fADPasswordExpirationDays) {
             $ExpiryDate = [DateTime]::FromFileTime([Int64]::Parse((($Result.Properties["msDS-UserPasswordExpiryTimeComputed"])[0]).ToString()))
         }
         catch { 
-            Write-Log -Message "Failed to retrieve password expiration date from Active Directory. Script is continuing, but without password expiration date" -Level Error
+            Write-Log -Level Error -Message "Failed to retrieve password expiration date from Active Directory. Script is continuing, but without password expiration date"
             
         }
         if ($ExpiryDate) {
@@ -368,17 +406,17 @@ function Get-ADPasswordExpiration([string]$fADPasswordExpirationDays) {
             }
         }
         elseif (-NOT($ExpiryDate)) {
-            Write-Log -Message "No password expiration date found. Returning False" -Level Error
+            Write-Log -Level Error -Message "No password expiration date found. Returning False"
             $false
         }
     }
     elseif (-NOT($SamAccountName) -OR ($DomainName)) {
-        Write-Log -Message "Failed to retrieve SamAccountName or DomainName from local Active Directory. Script is continuing, but password expiration date cannot be retrieved" -Level Error
+        Write-Log -Level Error -Message "Failed to retrieve SamAccountName or DomainName from local Active Directory. Script is continuing, but password expiration date cannot be retrieved"
         $false
     }
 }
 
-# Create function for retrieving deadline directly from WMI based on the PackageID, UpdateID or ApplicationID. 
+# Create function for retrieving deadline directly from WMI based on the PackageID, UpdateID or ApplicationID
 # This works for Task Sequences, regular packages, software updates and applications
 # Thank you @kevmjohnston :-)
 function Get-DynamicDeadline() {
@@ -391,7 +429,7 @@ function Get-DynamicDeadline() {
                 $PackageID = Get-CimInstance -Namespace root\ccm\clientsdk -Query "SELECT * FROM CCM_Program where PackageID = '$DynDeadlineValue'"
             }
             catch { 
-                Write-Log -Message "Failed to get Package ID from WMI" -Level Error
+                Write-Log -Level Error -Message "Failed to get Package ID from WMI"
             }
         }
         # Getting software update information from WMI
@@ -406,13 +444,13 @@ function Get-DynamicDeadline() {
                 $ApplicationID = Get-CimInstance -Namespace root\ccm\clientsdk -Query "SELECT * FROM CCM_Application where ID = '$DynDeadlineValue'"
             }
             catch {
-                Write-Log -Message "Failed to get Application ID from WMI" -Level Error
+                Write-Log -Level Error -Message "Failed to get Application ID from WMI"
             }
         }
         # If not used with any of the options which supports getting the deadline dynamically
         else {
-            Write-Log -Level Error "Currently no option enabled within the toast configuration which supports getting the deadline retrieved dynamically"
-            Write-Log -Level Error "This currently only works for packages/task sequences and software updates"
+            Write-Log -Level Error -Message "Currently no option enabled within the toast configuration which supports getting the deadline retrieved dynamically"
+            Write-Log -Level Error -Message "This currently only works for packages/task sequences and software updates"
         }
 
         # If a package ID was retrieved, get deadline information
@@ -429,9 +467,9 @@ function Get-DynamicDeadline() {
                 $Deadline.ToUniversalTime()
             }
             else {
-                Write-Log -Message "Failed to get deadline date and time from WMI" -Level Error
-                Write-Log -Message "Please check if there really is a deadline configured" -Level Error
-                Write-Log -Message "The script is continuing, but the toast is displayed without deadline date and time" -Level Error
+                Write-Log -Level Error -Message "Failed to get deadline date and time from WMI"
+                Write-Log -Level Error -Message "Please check if there really is a deadline configured"
+                Write-Log -Level Error -Message "The script is continuing, but the toast is displayed without deadline date and time"
             }
         }
         # If a software update ID was retrieved, get deadline information
@@ -442,11 +480,10 @@ function Get-DynamicDeadline() {
                 $UpdateID.Deadline.ToUniversalTime()
             }
             else {
-                Write-Log -Message "Failed to get deadline date and time from WMI" -Level Error
-                Write-Log -Message "Please check if there really is a deadline configured" -Level Error
-                Write-Log -Message "The script is continuing, but the toast is displayed without deadline date and time" -Level Error
+                Write-Log -Level Error -Message "Failed to get deadline date and time from WMI"
+                Write-Log -Level Error -Message "Please check if there really is a deadline configured"
+                Write-Log -Level Error -Message "The script is continuing, but the toast is displayed without deadline date and time"
             }
-
         }
         # If a application ID was retrieved, get deadline information
         elseif (-NOT[string]::IsNullOrEmpty($ApplicationID)) {
@@ -456,17 +493,17 @@ function Get-DynamicDeadline() {
                 $ApplicationID.Deadline.ToUniversalTime()
             }
             else {
-                Write-Log -Message "Failed to get deadline date and time from WMI" -Level Error
-                Write-Log -Message "Please check if there really is a deadline configured" -Level Error
-                Write-Log -Message "The script is continuing, but the toast is displayed without deadline date and time" -Level Error
+                Write-Log -Level Error -Message "Failed to get deadline date and time from WMI"
+                Write-Log -Level Error -Message "Please check if there really is a deadline configured"
+                Write-Log -Level Error -Message "The script is continuing, but the toast is displayed without deadline date and time"
             }
         }
         else {
-            Write-Log -Message "Appears that the specified Package ID or Update ID or Application ID: $DynDeadlineValue is not deployed to the device."
+            Write-Log -Level Warn -Message "Appears that the specified Package ID or Update ID or Application ID: $DynDeadlineValue is not deployed to the device"
         }
     }
     else {
-        Write-Log -Message "ConfigMgr service not found. This function requires the ConfigMgr client to be installed" -Level Error
+        Write-Log -Level Error -Message "ConfigMgr service not found. This function requires the ConfigMgr client to be installed"
     }
 }
 
@@ -494,13 +531,13 @@ function Get-CMUpdate() {
                 1 { $EvaluationState = 'Available' }
                 2 { $EvaluationState = 'Submitted' }
                 7 { $EvaluationState = 'Installing' }
-                8 { $EvaluationStatet = 'Reboot' }
+                8 { $EvaluationState = 'Reboot' }
                 9 { $EvaluationState = 'Reboot' }
                 13 { $EvaluationState = 'Error' }
             }
             # If the evaluation of the update is in a desired state, write the details to output
             if ($EvaluationState -eq "None" -OR $EvaluationState -eq "Available" -OR $EvaluationState -eq "Submitted") {
-                Write-Log -Level Info -Message "Found update that matches UpdateID: $($GetCMUpdate.ArticleID) and name: $($GetCMUpdate.Name)."
+                Write-Log -Level Info -Message "Found update that matches UpdateID: $($GetCMUpdate.ArticleID) and name: $($GetCMUpdate.Name)"
                 $GetCMUpdate
             }
             # If the evaluation state is in error, retry the installation of the software update, but write this to log separately
@@ -510,8 +547,8 @@ function Get-CMUpdate() {
             }
             # If the evalutation is not in a desired state, do not display toast notification and exit script
             else {
-                Write-Log -Level Error -Message "EvalutationState of UpdateID: $($GetCMUpdate.ArticleID) is not set to available. EvaluationState is: $EvaluationState."
-                Write-Log -Level Error -Message "Script will exit here. Not displaying toast notification when when eval state is: $EvaluationState"
+                Write-Log -Level Error -Message "EvalutationState of UpdateID: $($GetCMUpdate.ArticleID) is not set to available. EvaluationState is: $EvaluationState"
+                Write-Log -Level Error -Message "Script will exit here. Not displaying toast notification when when EvaluationState is: $EvaluationState"
                 Exit 1
             }
         }
@@ -693,6 +730,16 @@ function Display-ToastNotification() {
         Write-Log -Message "All good. Toast notification was displayed"
         # Using Write-Output for sending status to IME log when used with Endpoint Analytics in Intune
         Write-Output "All good. Toast notification was displayed"
+        if ($CustomAudio -eq "True") {
+            Invoke-Command -ScriptBlock {
+                Add-Type -AssemblyName System.Speech
+                $speak = New-Object System.Speech.Synthesis.SpeechSynthesizer
+                sleep 1.25
+                $speak.SelectVoiceByHints("female",65)
+                $speak.Speak($CustomAudioTextToSpeech)
+                $speak.Dispose()
+            }    
+        }
         Exit 0
     }
     catch { 
@@ -701,14 +748,6 @@ function Display-ToastNotification() {
         # Using Write-Output for sending status to IME log when used with Endpoint Analytics in Intune
         Write-Output "Something went wrong when displaying the toast notification. Make sure the script is running as the logged on user"
         Exit 1 
-    }
-    if ($CustomAudio -eq "True") {
-        Invoke-Command -ScriptBlock {
-            Add-Type -AssemblyName System.Speech
-            $speak = New-Object System.Speech.Synthesis.SpeechSynthesizer
-            $speak.Speak($CustomAudioTextToSpeech)
-            $speak.Dispose()
-        }    
     }
 }
 
@@ -757,7 +796,6 @@ function Write-CustomActionRegistry() {
                 $ErrorMessage = $_.Exception.Message
                 Write-Log -Level Error -Message "Error message: $ErrorMessage"
             }
-            
         }
         ToastRunUpdateID { 
             # Build out registry for custom action for running software update via the action button
@@ -773,7 +811,6 @@ function Write-CustomActionRegistry() {
                 $ErrorMessage = $_.Exception.Message
                 Write-Log -Level Error -Message "Error message: $ErrorMessage"
             }
-            
         }
         ToastRunPackageID { 
             # Build out registry for custom action for running packages and task sequences via the action button
@@ -789,7 +826,6 @@ function Write-CustomActionRegistry() {
                 $ErrorMessage = $_.Exception.Message
                 Write-Log -Level Error -Message "Error message: $ErrorMessage"
             }
-            
         }
         ToastRunApplicationID { 
             # Build out registry for custom action for running applications via the action button
@@ -805,7 +841,6 @@ function Write-CustomActionRegistry() {
                 $ErrorMessage = $_.Exception.Message
                 Write-Log -Level Error -Message "Error message: $ErrorMessage"
             }
-            
         }
     }
 }
@@ -1167,7 +1202,7 @@ function Write-FullCustomProtocol {
 ######### GENERAL VARIABLES #########
 # Global variables
 # Setting global script version
-$global:ScriptVersion = "2.0.2"
+$global:ScriptVersion = "2.1.0"
 # Setting executing directory
 $global:ScriptPath = Split-Path -Parent $MyInvocation.MyCommand.Definition
 # Setting global custom action script location
@@ -1175,9 +1210,9 @@ $global:CustomScriptsPath = "$env:APPDATA\ToastNotificationScript\Scripts"
 # Setting global registry path
 $global:RegistryPath = "HKCU:\SOFTWARE\ToastNotificationScript"
 # Get running OS build
-$RunningOS = Get-CimInstance -Class Win32_OperatingSystem | Select-Object BuildNumber
+$RunningOS = try { Get-CimInstance -Class Win32_OperatingSystem | Select-Object BuildNumber } catch { Write-Log -Level Error -Message "Failed to get running OS build. This is used with the OSUpgrade option, which now might not work properly" }
 # Get user culture for multilanguage support
-$userCulture = (Get-Culture).Name
+$userCulture = try { (Get-Culture).Name } catch { Write-Log -Level Error -Message "Failed to get users local culture. This is used with the multilanguage option, which now might not work properly" }
 # Setting the default culture to en-US. This will be the default language if MultiLanguageSupport is not enabled in the config
 $defaultUserCulture = "en-US"
 # Temporary location for images if images are hosted online on blob storage or similar
@@ -1229,6 +1264,9 @@ if ($SupportedWindowsVersion -eq $False) {
 
 # Testing for blockers of toast notifications in Windows
 $WindowsPushNotificationsEnabled = Test-WindowsPushNotificationsEnabled
+if ($WindowsPushNotificationsEnabled -eq $False) {
+    Enable-WindowsPushNotifications
+}
 # If no config file is set as parameter, use the default. 
 # Default is executing directory. In this case, the config-toast.xml must exist in same directory as the New-ToastNotification.ps1 file
 if (-NOT($Config)) {
@@ -1342,7 +1380,7 @@ if(-NOT[string]::IsNullOrEmpty($Xml)) {
             $HeroImage = $ImagesPath + "/" + $HeroImageFileName
         }
         $Scenario = $Xml.Configuration.Option | Where-Object {$_.Name -like 'Scenario'} | Select-Object -ExpandProperty 'Type'
-        $Action = $Xml.Configuration.Option | Where-Object {$_.Name -like 'Action'} | Select-Object -ExpandProperty 'Value'
+        $Action1 = $Xml.Configuration.Option | Where-Object {$_.Name -like 'Action1'} | Select-Object -ExpandProperty 'Value'
         $Action2 = $Xml.Configuration.Option | Where-Object {$_.Name -like 'Action2'} | Select-Object -ExpandProperty 'Value'
         $GreetGivenName = $Xml.Configuration.Text | Where-Object {$_.Option -like 'GreetGivenName'} | Select-Object -ExpandProperty 'Enabled'
         $MultiLanguageSupport = $Xml.Configuration.Text | Where-Object {$_.Option -like 'MultiLanguageSupport'} | Select-Object -ExpandProperty 'Enabled'
@@ -1351,8 +1389,8 @@ if(-NOT[string]::IsNullOrEmpty($Xml)) {
         $CustomAction = $Xml.Configuration.CustomActions.Action
         $CustomActionName = $Xml.Configuration.CustomActions.Action.Name
         # Load Toast Notification buttons
-        $ActionButtonEnabled = $Xml.Configuration.Option | Where-Object {$_.Name -like 'ActionButton'} | Select-Object -ExpandProperty 'Enabled'
-        $Action2ButtonEnabled = $Xml.Configuration.Option | Where-Object {$_.Name -like 'Action2Button'} | Select-Object -ExpandProperty 'Enabled'
+        $ActionButton1Enabled = $Xml.Configuration.Option | Where-Object {$_.Name -like 'ActionButton1'} | Select-Object -ExpandProperty 'Enabled'
+        $ActionButton2Enabled = $Xml.Configuration.Option | Where-Object {$_.Name -like 'ActionButton2'} | Select-Object -ExpandProperty 'Enabled'
         $DismissButtonEnabled = $Xml.Configuration.Option | Where-Object {$_.Name -like 'DismissButton'} | Select-Object -ExpandProperty 'Enabled'
         $SnoozeButtonEnabled = $Xml.Configuration.Option | Where-Object {$_.Name -like 'SnoozeButton'} | Select-Object -ExpandProperty 'Enabled'
         # Multi language support
@@ -1381,9 +1419,9 @@ if(-NOT[string]::IsNullOrEmpty($Xml)) {
         $PendingRebootUptimeTextValue = $XmlLang.Text | Where-Object {$_.Name -like 'PendingRebootUptimeText'} | Select-Object -ExpandProperty '#text'
         $PendingRebootCheckTextValue = $XmlLang.Text | Where-Object {$_.Name -like 'PendingRebootCheckText'} | Select-Object -ExpandProperty '#text'
         $ADPasswordExpirationTextValue = $XmlLang.Text | Where-Object {$_.Name -like 'ADPasswordExpirationText'} | Select-Object -ExpandProperty '#text'
-        $CustomAudioTextToSpeech = $XmlLang.Text | Where-Object {$_.Name -like 'CustomAudio'} | Select-Object -ExpandProperty '#text'
-        $ActionButtonContent = $XmlLang.Text | Where-Object {$_.Name -like 'ActionButton'} | Select-Object -ExpandProperty '#text'
-        $Action2ButtonContent = $XmlLang.Text | Where-Object {$_.Name -like 'Action2Button'} | Select-Object -ExpandProperty '#text'
+        $CustomAudioTextToSpeech = $XmlLang.Text | Where-Object {$_.Name -like 'CustomAudioTextToSpeech'} | Select-Object -ExpandProperty '#text'
+        $ActionButton1Content = $XmlLang.Text | Where-Object {$_.Name -like 'ActionButton1'} | Select-Object -ExpandProperty '#text'
+        $ActionButton2Content = $XmlLang.Text | Where-Object {$_.Name -like 'ActionButton2'} | Select-Object -ExpandProperty '#text'
         $DismissButtonContent = $XmlLang.Text | Where-Object {$_.Name -like 'DismissButton'} | Select-Object -ExpandProperty '#text'
         $SnoozeButtonContent = $XmlLang.Text | Where-Object {$_.Name -like 'SnoozeButton'} | Select-Object -ExpandProperty '#text'
         $AttributionText = $XmlLang.Text | Where-Object {$_.Name -like 'AttributionText'} | Select-Object -ExpandProperty '#text'
@@ -1417,12 +1455,12 @@ if ($ToastEnabled -ne "True") {
 # Checking for conflicts in config. Some combinations makes no sense, thus trying to prevent those from happening
 if (($UpgradeOS -eq "True") -AND ($PendingRebootCheck -eq "True")) {
     Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
-    Write-Log -Level Error -Message "Error. You can't have both ÜpgradeOS feature set to True AND PendingRebootCheck feature set to True at the same time"
+    Write-Log -Level Error -Message "Error. You can't have both ÜpgradeOS feature set to True AND PendingRebootCheck feature set to True at the same time. Check your config"
     Exit 1
 }
 if (($UpgradeOS -eq "True") -AND ($PendingRebootUptime -eq "True")) {
     Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
-    Write-Log -Level Error -Message "Error. You can't have both ÜpgradeOS feature set to True AND PendingRebootUptime feature set to True at the same time"
+    Write-Log -Level Error -Message "Error. You can't have both ÜpgradeOS feature set to True AND PendingRebootUptime feature set to True at the same time. Check your config"
     Exit 1
 }
 if (($PendingRebootCheck -eq "True") -AND ($PendingRebootUptime -eq "True")) {
@@ -1432,17 +1470,17 @@ if (($PendingRebootCheck -eq "True") -AND ($PendingRebootUptime -eq "True")) {
 }
 if (($ADPasswordExpiration -eq "True") -AND ($UpgradeOS -eq "True")) {
     Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
-    Write-Log -Level Error -Message "Error. You can't have both ADPasswordExpiration AND UpgradeOS set to True at the same time"
+    Write-Log -Level Error -Message "Error. You can't have both ADPasswordExpiration AND UpgradeOS set to True at the same time. Check your config"
     Exit 1
 }
 if (($ADPasswordExpiration -eq "True") -AND ($PendingRebootCheck -eq "True")) {
     Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
-    Write-Log -Level Error -Message "Error. You can't have both ADPasswordExpiration AND PendingRebootCheck set to True at the same time"
+    Write-Log -Level Error -Message "Error. You can't have both ADPasswordExpiration AND PendingRebootCheck set to True at the same time. Check your config"
     Exit 1
 }
 if (($ADPasswordExpiration -eq "True") -AND ($PendingRebootUptime -eq "True")) {
     Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
-    Write-Log -Level Error -Message "Error. You can't have both ADPasswordExpiration AND PendingRebootUptime set to True at the same time"
+    Write-Log -Level Error -Message "Error. You can't have both ADPasswordExpiration AND PendingRebootUptime set to True at the same time. Check your config"
     Exit 1
 }
 if (($SCAppStatus -eq "True") -AND (-NOT(Get-Service -Name ccmexec))) {
@@ -1452,28 +1490,28 @@ if (($SCAppStatus -eq "True") -AND (-NOT(Get-Service -Name ccmexec))) {
 }
 if (($SCAppStatus -eq "True") -AND ($PSAppStatus -eq "True")) {
     Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
-    Write-Log -Level Error -Message "Error. You can't have both SoftwareCenter app set to True AND PowershellApp set to True at the same time"
+    Write-Log -Level Error -Message "Error. You can't have both SoftwareCenter app set to True AND PowershellApp set to True at the same time. Check your config"
     Exit 1
 }
 if (($SCAppStatus -ne "True") -AND ($PSAppStatus -ne "True")) {
     Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
-    Write-Log -Level Error -Message "Error. You need to enable at least 1 app in the config doing the notification. ie. Software Center or Powershell"
+    Write-Log -Level Error -Message "Error. You need to enable at least 1 app in the config doing the notification. ie. Software Center or Powershell. Check your config"
     Exit 1
 }
 if (($UpgradeOS -eq "True") -AND ($PendingRebootUptimeTextEnabled -eq "True")) {
     Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
-    Write-Log -Level Error -Message "Error. You can't have UpgradeOS set to True and PendingRebootUptimeText set to True at the same time"
+    Write-Log -Level Error -Message "Error. You can't have UpgradeOS set to True and PendingRebootUptimeText set to True at the same time. Check your config"
     Exit 1
 }
 if (($UpgradeOS -eq "True") -AND ($PendingRebootCheckTextEnabled -eq "True")) {
     Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
-    Write-Log -Level Error -Message "Error. You can't have UpgradeOS set to True and PendingRebootCheckText set to True at the same time"
+    Write-Log -Level Error -Message "Error. You can't have UpgradeOS set to True and PendingRebootCheckText set to True at the same time. Check your config"
     Exit 1
 }
 if (($PendingRebootUptimeTextEnabled -eq "True") -AND ($PendingRebootCheckTextEnabled -eq "True")) {
     Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
     Write-Log -Level Error -Message "Error. You can't have PendingRebootUptimeText set to True and PendingRebootCheckText set to True at the same time"
-    Write-Log -Level Error -Message "You should only enable one of the text options"
+    Write-Log -Level Error -Message "You should only enable one of the text options. Check your config"
     Exit 1
 }
 if (($PendingRebootCheck -eq "True") -AND ($PendingRebootUptimeTextEnabled -eq "True")) {
@@ -1485,43 +1523,43 @@ if (($PendingRebootCheck -eq "True") -AND ($PendingRebootUptimeTextEnabled -eq "
 if (($PendingRebootUptime -eq "True") -AND ($PendingRebootCheckTextEnabled -eq "True")) {
     Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
     Write-Log -Level Error -Message "Error. You can't have PendingRebootUptime set to True and PendingRebootCheckText set to True at the same time"
-    Write-Log -Level Error -Message "You should use PendingRebootUptime with the PendingRebootUptimeText option instead"
+    Write-Log -Level Error -Message "You should use PendingRebootUptime with the PendingRebootUptimeText option instead. Check your config"
     Exit 1
 }
 if (($ADPasswordExpirationTextEnabled -eq "True") -AND ($PendingRebootCheckTextEnabled -eq "True")) {
     Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
     Write-Log -Level Error -Message "Error. You can't have ADPasswordExpirationTextEnabled set to True and PendingRebootCheckText set to True at the same time"
-    Write-Log -Level Error -Message "You should only enable one of the text options"
+    Write-Log -Level Error -Message "You should only enable one of the text options. Check your config"
     Exit 1
 }
 if (($ADPasswordExpirationTextEnabled -eq "True") -AND ($PendingRebootUptimeTextEnabled -eq "True")) {
     Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
     Write-Log -Level Error -Message "Error. You can't have ADPasswordExpirationTextEnabled set to True and PendingRebootUptimeTextEnabled set to True at the same time"
-    Write-Log -Level Error -Message "You should only enable one of the text options"
+    Write-Log -Level Error -Message "You should only enable one of the text options. Check your config"
     Exit 1
 }
 if (($DeadlineEnabled -eq "True") -AND ($DynDeadlineEnabled -eq "True")) {
     Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
     Write-Log -Level Error -Message "Error. You can't have DeadlineEnabled set to True and DynamicDeadlineEnabled set to True at the same time"
-    Write-Log -Level Error -Message "You should only enable one of the deadline options"
+    Write-Log -Level Error -Message "You should only enable one of the deadline options. Check your config"
     Exit 1
 }
 if (($RunApplicationIDEnabled -eq "True") -AND ($RunPackageIDEnabled -eq "True")) {
     Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
     Write-Log -Level Error -Message "Error. You can't have RunApplicationIDEnabled set to True and RunPackageIDEnabled set to True at the same time"
-    Write-Log -Level Error -Message "You should only enable one of the options"
+    Write-Log -Level Error -Message "You should only enable one of the options. Check your config"
     Exit 1
 }
 if (($RunApplicationIDEnabled -eq "True") -AND ($RunUpdateIDEnabled -eq "True")) {
     Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
     Write-Log -Level Error -Message "Error. You can't have RunApplicationIDEnabled set to True and RunUpdateIDEnabled set to True at the same time"
-    Write-Log -Level Error -Message "You should only enable one of the options"
+    Write-Log -Level Error -Message "You should only enable one of the options. Check your config"
     Exit 1
 }
 if (($RunUpdateIDEnabled -eq "True") -AND ($RunPackageIDEnabled -eq "True")) {
     Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
     Write-Log -Level Error -Message "Error. You can't have RunUpdateIDEnabled set to True and RunPackageIDEnabled set to True at the same time"
-    Write-Log -Level Error -Message "You should only enable one of the options"
+    Write-Log -Level Error -Message "You should only enable one of the options. Check your config"
     Exit 1
 }
 # New checks for conflicting selections. Trying to prevent that one option is enabled with the wrong action
@@ -1530,55 +1568,87 @@ if (($RunUpdateIDEnabled -eq "True") -AND ($RunPackageIDEnabled -eq "True")) {
 if (($Action -eq "ToastRunApplicationID:") -AND ($RunUpdateIDEnabled -eq "True")) {
     Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
     Write-Log -Level Error -Message "You are using the toast notification with RunUpdateIDEnabled set to $RunUpdateIDEnabled, but the action button is set to $Action"
-    Write-Log -Level Error -Message "This seems like an unintended configuration"
+    Write-Log -Level Error -Message "This seems like an unintended configuration. Check your config"
     Exit 1
 }
 if (($Action -eq "ToastRunPackageID:") -AND ($RunUpdateIDEnabled -eq "True")) {
     Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
     Write-Log -Level Error -Message "You are using the toast notification with RunUpdateIDEnabled set to $RunUpdateIDEnabled, but the action button is set to $Action"
-    Write-Log -Level Error -Message "This seems like an unintended configuration"
+    Write-Log -Level Error -Message "This seems like an unintended configuration. Check your config"
     Exit 1
 }
 if (($Action -eq "ToastReboot:") -AND ($RunUpdateIDEnabled -eq "True")) {
     Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
     Write-Log -Level Error -Message "You are using the toast notification with RunUpdateIDEnabled set to $RunUpdateIDEnabled, but the action button is set to $Action"
-    Write-Log -Level Error -Message "This seems like an unintended configuration"
+    Write-Log -Level Error -Message "This seems like an unintended configuration. Check your config"
     Exit 1
 }
 if (($Action -eq "ToastRunApplicationID:") -AND ($RunPackageIDEnabled -eq "True")) {
     Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
     Write-Log -Level Error -Message "You are using the toast notification with RunPackageIDEnabled set to $RunPackageIDEnabled, but the action button is set to $Action"
-    Write-Log -Level Error -Message "This seems like an unintended configuration"
+    Write-Log -Level Error -Message "This seems like an unintended configuration. Check your config"
     Exit 1
 }
 if (($Action -eq "ToastRunUpdateID:") -AND ($RunPackageIDEnabled -eq "True")) {
     Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
     Write-Log -Level Error -Message "You are using the toast notification with RunPackageIDEnabled set to $RunPackageIDEnabled, but the action button is set to $Action"
-    Write-Log -Level Error -Message "This seems like an unintended configuration"
+    Write-Log -Level Error -Message "This seems like an unintended configuration. Check your config"
     Exit 1
 }
 if (($Action -eq "ToastReboot:") -AND ($RunPackageIDEnabled -eq "True")) {
     Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
     Write-Log -Level Error -Message "You are using the toast notification with RunPackageIDEnabled set to $RunPackageIDEnabled, but the action button is set to $Action"
-    Write-Log -Level Error -Message "This seems like an unintended configuration"
+    Write-Log -Level Error -Message "This seems like an unintended configuration. Check your config"
     Exit 1
 }
 if (($Action -eq "ToastRunPackageID:") -AND ($RunApplicationIDEnabled -eq "True")) {
     Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
     Write-Log -Level Error -Message "You are using the toast notification with RunApplicationIDEnabled set to $RunApplicationIDEnabled, but the action button is set to $Action"
-    Write-Log -Level Error -Message "This seems like an unintended configuration"
+    Write-Log -Level Error -Message "This seems like an unintended configuration. Check your config"
     Exit 1
 }
 if (($Action -eq "ToastRunUpdateID:") -AND ($RunApplicationIDEnabled -eq "True")) {
     Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
     Write-Log -Level Error -Message "You are using the toast notification with RunApplicationIDEnabled set to $RunApplicationIDEnabled, but the action button is set to $Action"
-    Write-Log -Level Error -Message "This seems like an unintended configuration"
+    Write-Log -Level Error -Message "This seems like an unintended configuration. Check your config"
     Exit 1
 }
 if (($Action -eq "ToastReboot:") -AND ($RunApplicationIDEnabled -eq "True")) {
     Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
     Write-Log -Level Error -Message "You are using the toast notification with RunApplicationIDEnabled set to $RunApplicationIDEnabled, but the action button is set to $Action"
-    Write-Log -Level Error -Message "This seems like an unintended configuration"
+    Write-Log -Level Error -Message "This seems like an unintended configuration. Check your config"
+    Exit 1
+}
+# New checks for conflicting selections. Trying to prevent combinations which will make the toast render without buttons
+# Added in version 2.1.0
+if (($ActionButton1Enabled -ne "True") -AND ($ActionButton2Enabled -eq "True")){
+    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
+    Write-Log -Level Error -Message "You can't have ActionButton2 enabled and ActionButton1 not enabled"
+    Write-Log -Level Error -Message "ActionButton1 must be enabled for ActionButton2 to be enabled. Check your config"
+    Exit 1
+}
+if (($ActionButton2Enabled -eq "True") -AND ($SnoozeButtonEnabled -eq "True")){
+    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
+    Write-Log -Level Error -Message "You can't have ActionButton2 enabled and SnoozeButton enabled at the same time"
+    Write-Log -Level Error -Message "That will result in too many buttons. Check your config"
+    Exit 1
+}
+if (($SnoozeButtonEnabled -eq "True") -AND ($PendingRebootUptimeTextEnabled -eq "True")){
+    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
+    Write-Log -Level Error -Message "You can't have SnoozeButton enabled and have PendingRebootUptimeText enabled at the same time"
+    Write-Log -Level Error -Message "That will result in too much text and the toast notification will render without buttons. Check your config"
+    Exit 1
+}
+if (($SnoozeButtonEnabled -eq "True") -AND ($PendingRebootCheckTextEnabled -eq "True")){
+    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
+    Write-Log -Level Error -Message "You can't have SnoozeButton enabled and have PendingRebootCheckText enabled at the same time"
+    Write-Log -Level Error -Message "That will result in too much text and the toast notification will render without buttons. Check your config"
+    Exit 1
+}
+if (($SnoozeButtonEnabled -eq "True") -AND ($ADPasswordExpirationTextEnabled -eq "True")){
+    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
+    Write-Log -Level Error -Message "You can't have SnoozeButton enabled and have ADPasswordExpirationText enabled at the same time"
+    Write-Log -Level Error -Message "That will result in too much text and the toast notification will render without buttons. Check your config"
     Exit 1
 }
 # New checks for Custom Actions
@@ -1663,7 +1733,7 @@ if ($CreateScriptsProtocolsEnabled -eq "True") {
                     New-ItemProperty -Path $global:RegistryPath -Name $RegistryName -Value $global:ScriptVersion -PropertyType "String" -Force | Out-Null
                 }
                 catch { 
-                    Write-Log -Message "Someting failed during creation of custom scripts and protocols" -Level Error
+                    Write-Log -Level Error -Message "Something failed during creation of custom scripts and protocols"
                 }
             }
             elseif ((Get-ItemProperty -Path $global:RegistryPath -Name $RegistryName -ErrorAction SilentlyContinue).$RegistryName -ge $global:ScriptVersion) {
@@ -1757,33 +1827,47 @@ if ($SCAppStatus -eq "True") {
             New-Item -Path $RegPath\$App -Force
             New-ItemProperty -Path $RegPath\$App -Name "ShowInActionCenter" -Value 1 -PropertyType "DWORD" -Force
             New-ItemProperty -Path $RegPath\$App -Name "Enabled" -Value 1 -PropertyType "DWORD" -Force
+            New-ItemProperty -Path $RegPath\$App -Name "SoundFile" -PropertyType "STRING" -Force
         }
         # Make sure the app used with the action center is enabled
         if ((Get-ItemProperty -Path $RegPath\$App -Name "Enabled" -ErrorAction SilentlyContinue).Enabled -ne "1") {
             New-ItemProperty -Path $RegPath\$App -Name "Enabled" -Value 1 -PropertyType "DWORD" -Force
         }
+        if ((Get-ItemProperty -Path $RegPath\$App -Name "ShowInActionCenter" -ErrorAction SilentlyContinue).ShowInActionCenter -ne "1") {
+            New-ItemProperty -Path $RegPath\$App -Name "ShowInActionCenter" -Value 1 -PropertyType "DWORD" -Force
+        }
+        # Added to not play any sounds when notification is displayed with scenario: alarm
+        if (-NOT(Get-ItemProperty -Path $RegPath\$App -Name "SoundFile" -ErrorAction SilentlyContinue)) {
+            New-ItemProperty -Path $RegPath\$App -Name "SoundFile" -PropertyType "STRING" -Force
+        }
     }
     else {
-        Write-Log -Message "No ConfigMgr client thus cannot use Software Center as notifying app" -Level Error
+        Write-Log -Message "No ConfigMgr client installed. Cannot use Software Center as notifying app" -Level Error
     }
 }
 
 # Check for required entries in registry for when using Powershell as application for the toast
 if ($PSAppStatus -eq "True") {
-
-    # Register the AppID in the registry for use with the Action Center, if required
+    # Path to the notification app doing the actual toast
     $RegPath = "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Notifications\Settings"
     $App =  "{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\WindowsPowerShell\v1.0\powershell.exe"
-    
     # Creating registry entries if they don't exists
     if (-NOT(Test-Path -Path $RegPath\$App)) {
         New-Item -Path $RegPath\$App -Force
         New-ItemProperty -Path $RegPath\$App -Name "ShowInActionCenter" -Value 1 -PropertyType "DWORD"
+        New-ItemProperty -Path $RegPath\$App -Name "Enabled" -Value 1 -PropertyType "DWORD" -Force
+        New-ItemProperty -Path $RegPath\$App -Name "SoundFile" -PropertyType "STRING" -Force
     }
-    
     # Make sure the app used with the action center is enabled
+    if ((Get-ItemProperty -Path $RegPath\$App -Name "Enabled" -ErrorAction SilentlyContinue).Enabled -ne "1") {
+        New-ItemProperty -Path $RegPath\$App -Name "Enabled" -Value 1 -PropertyType "DWORD" -Force
+    }    
     if ((Get-ItemProperty -Path $RegPath\$App -Name "ShowInActionCenter" -ErrorAction SilentlyContinue).ShowInActionCenter -ne "1") {
         New-ItemProperty -Path $RegPath\$App -Name "ShowInActionCenter" -Value 1 -PropertyType "DWORD" -Force
+    }
+    # Added to not play any sounds when notification is displayed with scenario: alarm
+    if (-NOT(Get-ItemProperty -Path $RegPath\$App -Name "SoundFile" -ErrorAction SilentlyContinue)) {
+        New-ItemProperty -Path $RegPath\$App -Name "SoundFile" -PropertyType "STRING" -Force
     }
 }
 
@@ -1809,8 +1893,8 @@ if ($GreetGivenName -eq "True") {
 
 # Formatting the toast notification XML
 # Create the default toast notification XML with action button and dismiss button
-if (($ActionButtonEnabled -eq "True") -AND ($Action2ButtonEnabled -ne "True") -AND ($DismissButtonEnabled -eq "True")) {
-    Write-Log -Message "Creating the xml for displaying both action button and dismiss button"
+if (($ActionButton1Enabled -eq "True") -AND ($ActionButton2Enabled -ne "True") -AND ($DismissButtonEnabled -eq "True")) {
+    Write-Log -Message "Creating the xml for action button and dismiss button"
 [xml]$Toast = @"
 <toast scenario="$Scenario">
     <visual>
@@ -1837,44 +1921,7 @@ if (($ActionButtonEnabled -eq "True") -AND ($Action2ButtonEnabled -ne "True") -A
     </binding>
     </visual>
     <actions>
-        <action activationType="protocol" arguments="$Action" content="$ActionButtonContent" />
-        <action activationType="system" arguments="dismiss" content="$DismissButtonContent"/>
-    </actions>
-</toast>
-"@
-}
-
-# Create the default toast notification XML with action button and dismiss button
-if (($Action2ButtonEnabled -eq "True") -AND ($ActionButtonEnabled -eq "True") -AND ($DismissButtonEnabled -eq "True")) {
-    Write-Log -Message "Creating the xml for displaying both action button and dismiss button"
-[xml]$Toast = @"
-<toast scenario="$Scenario">
-    <visual>
-    <binding template="ToastGeneric">
-        <image placement="hero" src="$HeroImage"/>
-        <image id="1" placement="appLogoOverride" hint-crop="circle" src="$LogoImage"/>
-        <text placement="attribution">$AttributionText</text>
-        <text>$HeaderText</text>
-        <group>
-            <subgroup>
-                <text hint-style="title" hint-wrap="true" >$TitleText</text>
-            </subgroup>
-        </group>
-        <group>
-            <subgroup>     
-                <text hint-style="body" hint-wrap="true" >$BodyText1</text>
-            </subgroup>
-        </group>
-        <group>
-            <subgroup>     
-                <text hint-style="body" hint-wrap="true" >$BodyText2</text>
-            </subgroup>
-        </group>
-    </binding>
-    </visual>
-    <actions>
-        <action activationType="protocol" arguments="$Action" content="$ActionButtonContent" />
-        <action activationType="protocol" arguments="$Action2" content="$Action2ButtonContent" />
+        <action activationType="protocol" arguments="$Action1" content="$ActionButton1Content" />
         <action activationType="system" arguments="dismiss" content="$DismissButtonContent"/>
     </actions>
 </toast>
@@ -1882,7 +1929,7 @@ if (($Action2ButtonEnabled -eq "True") -AND ($ActionButtonEnabled -eq "True") -A
 }
 
 # NO action button and NO dismiss button
-if (($ActionButtonEnabled -ne "True") -AND ($Action2ButtonEnabled -ne "True") -AND ($DismissButtonEnabled -ne "True")) {
+if (($ActionButton1Enabled -ne "True") -AND ($ActionButton2Enabled -ne "True") -AND ($DismissButtonEnabled -ne "True")) {
     Write-Log -Message "Creating the xml for no action button and no dismiss button"
 [xml]$Toast = @"
 <toast scenario="$Scenario">
@@ -1916,7 +1963,7 @@ if (($ActionButtonEnabled -ne "True") -AND ($Action2ButtonEnabled -ne "True") -A
 }
 
 # Action button and NO dismiss button
-if (($ActionButtonEnabled -eq "True") -AND ($Action2ButtonEnabled -ne "True") -AND ($DismissButtonEnabled -ne "True")) {
+if (($ActionButton1Enabled -eq "True") -AND ($ActionButton2Enabled -ne "True") -AND ($DismissButtonEnabled -ne "True")) {
     Write-Log -Message "Creating the xml for no dismiss button"
 [xml]$Toast = @"
 <toast scenario="$Scenario">
@@ -1944,14 +1991,14 @@ if (($ActionButtonEnabled -eq "True") -AND ($Action2ButtonEnabled -ne "True") -A
     </binding>
     </visual>
     <actions>
-        <action activationType="protocol" arguments="$Action" content="$ActionButtonContent" />
+        <action activationType="protocol" arguments="$Action1" content="$ActionButton1Content" />
     </actions>
 </toast>
 "@
 }
 
 # Dismiss button and NO action button
-if (($ActionButtonEnabled -ne "True") -AND ($Action2ButtonEnabled -ne "True") -AND ($DismissButtonEnabled -eq "True")) {
+if (($ActionButton1Enabled -ne "True") -AND ($ActionButton2Enabled -ne "True") -AND ($DismissButtonEnabled -eq "True")) {
     Write-Log -Message "Creating the xml for no action button"
 [xml]$Toast = @"
 <toast scenario="$Scenario">
@@ -1985,9 +2032,49 @@ if (($ActionButtonEnabled -ne "True") -AND ($Action2ButtonEnabled -ne "True") -A
 "@
 }
 
+if ($ActionButton2Enabled -eq "True") {
+    Write-Log -Message "Creating the xml for displaying two action buttons and dismiss button"
+    Write-Log -Message "This will always enable both action buttons and the dismiss button" -Level Warn
+    Write-Log -Message "Replacing any previous formatting of the toast xml" -Level Warn
+[xml]$Toast = @"
+<toast scenario="$Scenario">
+    <visual>
+    <binding template="ToastGeneric">
+        <image placement="hero" src="$HeroImage"/>
+        <image id="1" placement="appLogoOverride" hint-crop="circle" src="$LogoImage"/>
+        <text placement="attribution">$AttributionText</text>
+        <text>$HeaderText</text>
+        <group>
+            <subgroup>
+                <text hint-style="title" hint-wrap="true" >$TitleText</text>
+            </subgroup>
+        </group>
+        <group>
+            <subgroup>     
+                <text hint-style="body" hint-wrap="true" >$BodyText1</text>
+            </subgroup>
+        </group>
+        <group>
+            <subgroup>     
+                <text hint-style="body" hint-wrap="true" >$BodyText2</text>
+            </subgroup>
+        </group>
+    </binding>
+    </visual>
+    <actions>
+        <action activationType="protocol" arguments="$Action1" content="$ActionButton1Content" />
+        <action activationType="protocol" arguments="$Action2" content="$ActionButton2Content" />
+        <action activationType="system" arguments="dismiss" content="$DismissButtonContent"/>
+    </actions>
+</toast>
+"@
+}
+
 # Snooze button - this option will always enable both action button and dismiss button regardless of config settings
 if ($SnoozeButtonEnabled -eq "True") {
     Write-Log -Message "Creating the xml for snooze button"
+    Write-Log -Message "This will always enable the action button as well as the dismiss button" -Level Warn
+    Write-Log -Message "Replacing any previous formatting of the toast xml" -Level Warn
 [xml]$Toast = @"
 <toast scenario="$Scenario">
     <visual>
@@ -2021,7 +2108,7 @@ if ($SnoozeButtonEnabled -eq "True") {
             <selection id="240" content="4 $HoursText"/>
             <selection id="480" content="8 $HoursText"/>
         </input>
-        <action activationType="protocol" arguments="$Action" content="$ActionButtonContent" />
+        <action activationType="protocol" arguments="$Action1" content="$ActionButton1Content" />
         <action activationType="system" arguments="snooze" hint-inputId="snoozeTime" content="$SnoozeButtonContent"/>
         <action activationType="system" arguments="dismiss" content="$DismissButtonContent"/>
     </actions>

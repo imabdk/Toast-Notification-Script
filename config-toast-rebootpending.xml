@@ -23,11 +23,13 @@
 	<Option Name="CustomAudio" Enabled="False" />	<!-- Enable or disable a custom speak scenario, where the text will be read out aloud -->
 	<Option Name="LogoImageName" Value="ToastLogoImageDefault.jpg" />  <!-- File name of the image shown as logo in the toast notoification  -->
 	<Option Name="HeroImageName" Value="ToastHeroImageDefault.jpg" /> <!-- File name of the image shown in the top of the toast notification -->	
-	<Option Name="ActionButton" Enabled="False" />	<!-- Enables or disables the action button. -->
+	<Option Name="ActionButton1" Enabled="True" />	<!-- Enables or disables the action button. -->
+	<Option Name="ActionButton2" Enabled="True" />	<!-- Enables or disables the action button. -->
 	<Option Name="DismissButton" Enabled="True" />	<!-- Enables or disables the dismiss button. -->
 	<Option Name="SnoozeButton" Enabled="False" /> <!-- Enabling this option will always enable action button and dismiss button -->
-	<Option Name="Scenario" Type="long" />	<!-- Possible values are: reminder | short | long -->
-	<Option Name="Action" Value="ToastReboot:" />	<!-- Action taken when using the Action button. Can be any protocol in Windows -->
+	<Option Name="Scenario" Type="reminder" />	<!-- Possible values are: reminder | short | long -->
+	<Option Name="Action1" Value="ToastReboot:" />	<!-- Action taken when using the Action button. Can be any protocol in Windows -->
+	<Option Name="Action2" Value="https://imab.dk" />	<!-- Action taken when using the Action button. Can be any protocol in Windows -->
 	<Text Option="GreetGivenName" Enabled="True" />	<!-- Displays the toast with a personal greeting using the users given name retrieved from AD. Will try retrieval from WMI of no local AD -->
 	<Text Option="MultiLanguageSupport" Enabled="False" /> <!-- Enable support for multiple languages. If set to True, the toast notification will look for the users language culture within the config file -->
 	<en-US> <!-- Default fallback language. This language will be used if MultiLanguageSupport is set to False or if no matching language is found -->
@@ -35,7 +37,8 @@
         <Text Name="PendingRebootCheckText">Reason: Pending reboots was found in registry or WMI.</Text> <!-- Text used if the PendingRebootUptimeText Option is enabled -->
         <Text Name="ADPasswordExpirationText">Your password will expire on: </Text> <!-- Text used if the ADPasswordExpirationText Option is enabled -->
         <Text Name="CustomAudioTextToSpeech">Hey you - wake up. Your computer needs to restart. Do it now.</Text> <!-- Text to speech used if the CustomAudioTextToSpeech Option is enabled -->
-        <Text Name="ActionButton">Restart now</Text>  <!-- Text on the ActionButton if enabled -->
+        <Text Name="ActionButton1">Restart now</Text>  <!-- Text on the ActionButton if enabled -->
+		<Text Name="ActionButton2">Learn More</Text>  <!-- Text on the ActionButton if enabled -->
         <Text Name="DismissButton">Dismiss</Text> <!-- Text on the DismissButton if enabled -->
         <Text Name="SnoozeButton">Snooze</Text> <!-- Text on the SnoozeButton if enabled -->
         <Text Name="AttributionText">www.imab.dk</Text>
@@ -59,7 +62,8 @@
         <Text Name="PendingRebootCheckText">Årsag: Udestående genstart fundet i registry eller WMI.</Text> <!-- Text used if the PendingRebootUptimeText Option is enabled -->
         <Text Name="ADPasswordExpirationText">Dit password vil udløbe: </Text> <!-- Text used if the ADPasswordExpirationText Option is enabled -->
         <Text Name="CustomAudioTextToSpeech">Hej dig - vågn op. Din computer skal genstarte. Gør det nu.</Text> <!-- Text to speech used if the CustomAudioTextToSpeech Option is enabled -->
-        <Text Name="ActionButton">Genstart nu</Text>  <!-- Text on the ActionButton if enabled -->
+        <Text Name="ActionButton1">Genstart nu</Text>  <!-- Text on the ActionButton if enabled -->
+		<Text Name="ActionButton2">Mere Info</Text>  <!-- Text on the ActionButton if enabled -->
         <Text Name="DismissButton">Afvis</Text> <!-- Text on the DismissButton if enabled -->
         <Text Name="SnoozeButton">Udskyd</Text> <!-- Text on the SnoozeButton if enabled -->
         <Text Name="AttributionText">www.imab.dk</Text>
@@ -83,7 +87,8 @@
 		<Text Name="PendingRebootCheckText">Orsak: Väntande omstart hittades i registret eller WMI.</Text>	<!-- Text used if the PendingRebootUptimeText Option is enabled -->
 		<Text Name="ADPasswordExpirationText">Ditt lösenord går ut: </Text>	<!-- Text used if the ADPasswordExpirationText Option is enabled -->
 		<Text Name="CustomAudioTextToSpeech">Hej du - vakna upp. Datorn måste starta om. Gör det nu.</Text>	<!-- Text to speech used if the CustomAudioTextToSpeech Option is enabled -->
-		<Text Name="ActionButton">Starta Om</Text>	<!-- Text on the ActionButton if enabled -->
+		<Text Name="ActionButton1">Starta Om</Text>	<!-- Text on the ActionButton if enabled -->
+		<Text Name="ActionButton2">Starta Om</Text>	<!-- Text on the ActionButton if enabled -->
 		<Text Name="DismissButton">Stäng</Text>	<!-- Text on the DismissButton if enabled -->
 		<Text Name="SnoozeButton">Påminn</Text>	<!-- Text on the SnoozeButton if enabled -->
 		<Text Name="AttributionText">www.imab.dk</Text>

@@ -1090,6 +1090,7 @@ $AppArguments = @{
 }
 if (-NOT[string]::IsNullOrEmpty($TestApplicationID)) {
     if ($TestApplicationID.InstallState -eq "NotInstalled") { Invoke-CimMethod -Namespace "ROOT\ccm\clientSDK" -ClassName CCM_Application -MethodName Install -Arguments $AppArguments }
+    elseif ($TestApplicationID.InstallState -eq "NotUpdated") { Invoke-CimMethod -Namespace "ROOT\ccm\clientSDK" -ClassName CCM_Application -MethodName Install -Arguments $AppArguments }
     elseif ($TestApplicationID.InstallState -eq "Installed") { Invoke-CimMethod -Namespace "ROOT\ccm\clientSDK" -ClassName CCM_Application -MethodName Repair -Arguments $AppArguments }
     if (Test-Path -Path "$env:windir\CCM\ClientUX\SCClient.exe") { Start-Process -FilePath "$env:windir\CCM\ClientUX\SCClient.exe" -ArgumentList "SoftwareCenter:Page=InstallationStatus" -WindowStyle Maximized }
 }

@@ -730,6 +730,7 @@ function Display-ToastNotification() {
         Write-Log -Message "All good. Toast notification was displayed"
         # Using Write-Output for sending status to IME log when used with Endpoint Analytics in Intune
         Write-Output "All good. Toast notification was displayed"
+        Save-NotifificationTimeStamp
         if ($CustomAudio -eq "True") {
             Invoke-Command -ScriptBlock {
                 Add-Type -AssemblyName System.Speech
@@ -1116,6 +1117,42 @@ exit 0
     }
 }
 
+######### CUSTOM FUNCTIONS #########
+# Create function to retrieve the number of days since the notification last ran for the logged on user
+function Get-DaysSinceLastRun {
+    Write-Log -Message "Running Get-DaysSinceLastRun function"
+    $LocalCulture = Get-Culture
+    $RegionDateFormat = [System.Globalization.CultureInfo]::GetCultureInfo($LocalCulture.LCID).DateTimeFormat.FullDateTimePattern
+    $LastRunDate = (Get-ItemProperty "$LastRunRegistryPath" -Name LastRunDate -ErrorAction Ignore).LastRunDate
+
+    if ($null -eq $LastRunDate) {
+        Write-Log -Message 'No last run time found. Returning $null'
+        return $null
+    }
+    else {
+        $Today = Get-Date -f "$RegionDateFormat"
+        $DateDiff = New-TimeSpan -Start $Today -End (Get-Date $LastRunDate -f "$RegionDateFormat")
+        Write-Log -Message "Last run date = $LastRunDate ($($DateDiff.Days) days ago)"
+        $DateDiff.Days
+    }
+}
+
+# Create function to store the timestamp of the notification execution
+function Save-NotifificationTimeStamp {
+    Write-Log -Message "Storing the run time for the toast notification in registry"
+    $LocalCulture = Get-Culture
+    $RegionDateFormat = [System.Globalization.CultureInfo]::GetCultureInfo($LocalCulture.LCID).DateTimeFormat.FullDateTimePattern        
+    $RunTime = Get-Date -f "$RegionDateFormat"
+    If(-not (Test-Path $LastRunRegistryPath)) {
+        New-Item -Path $LastRunRegistryPath -Force | Out-Null
+    }
+    If(-not (Get-ItemProperty -Path $LastRunRegistryPath -Name LastRunDate -ErrorAction Ignore)) {
+        New-ItemProperty -Path $LastRunRegistryPath -Name 'LastRunDate' -Value $RunTime -Force | Out-Null
+    }
+    Else {
+        Set-ItemProperty -Path $LastRunRegistryPath -Name 'LastRunDate' -Value $RunTime -Force
+    }
+}
 ######### GENERAL VARIABLES #########
 # Global variables
 # Setting global script version
@@ -1258,6 +1295,8 @@ if(-NOT[string]::IsNullOrEmpty($Xml)) {
         $PendingRebootUptime = $Xml.Configuration.Feature | Where-Object {$_.Name -like 'PendingRebootUptime'} | Select-Object -ExpandProperty 'Enabled'
         $PendingRebootCheck = $Xml.Configuration.Feature | Where-Object {$_.Name -like 'PendingRebootCheck'} | Select-Object -ExpandProperty 'Enabled'
         $ADPasswordExpiration = $Xml.Configuration.Feature | Where-Object {$_.Name -like 'ADPasswordExpiration'} | Select-Object -ExpandProperty 'Enabled'
+        $RunOncePerDay = $Xml.Configuration.Feature | Where-Object {$_.Name -like 'RunOncePerDay'} | Select-Object -ExpandProperty 'Enabled'
+        $RunOnce = $Xml.Configuration.Feature | Where-Object {$_.Name -like 'RunOnce'} | Select-Object -ExpandProperty 'Enabled'
         # Load Toast Notification options   
         $PendingRebootUptimeTextEnabled = $Xml.Configuration.Option | Where-Object {$_.Name -like 'PendingRebootUptimeText'} | Select-Object -ExpandProperty 'Enabled'
         $MaxUptimeDays = $Xml.Configuration.Option | Where-Object {$_.Name -like 'MaxUptimeDays'} | Select-Object -ExpandProperty 'Value'
@@ -1267,6 +1306,8 @@ if(-NOT[string]::IsNullOrEmpty($Xml)) {
         $TargetOS = $Xml.Configuration.Option | Where-Object {$_.Name -like 'TargetOS'} | Select-Object -ExpandProperty 'Build'
         $DeadlineEnabled = $Xml.Configuration.Option | Where-Object {$_.Name -like 'Deadline'} | Select-Object -ExpandProperty 'Enabled'
         $DeadlineContent = $Xml.Configuration.Option | Where-Object {$_.Name -like 'Deadline'} | Select-Object -ExpandProperty 'Value'
+        $LastRunRegistryPath = $Xml.Configuration.Option | Where-Object {$_.Name -like 'LastRunRegistryPath'} | Select-Object -ExpandProperty 'Value'
+        $LastRunRegistryPath = "$($global:RegistryPath)\$LastRunRegistryPath"
         $DynDeadlineEnabled = $Xml.Configuration.Option | Where-Object {$_.Name -like 'DynamicDeadline'} | Select-Object -ExpandProperty 'Enabled'
         $DynDeadlineValue = $Xml.Configuration.Option | Where-Object {$_.Name -like 'DynamicDeadline'} | Select-Object -ExpandProperty 'Value'
         # Creating Scripts and Protocols
@@ -1363,6 +1404,23 @@ if(-NOT[string]::IsNullOrEmpty($Xml)) {
 if ($ToastEnabled -ne "True") {
     Write-Log -Message "Toast notification is not enabled. Please check $Config file"
     Exit 1
+}
+
+If($RunOnce -eq "True") {
+    # Check if notification has already run for this user on this computer
+    $DaysSinceLastRun = Get-DaysSinceLastRun
+    if ($null -ne $DaysSinceLastRun) {
+        Write-Log -Message "Toast notification has already run for this user on this computer. Skipping it"
+        Exit 1
+    }
+}
+If($RunOncePerDay -eq "True") {
+    # Check if last notification run for the logged on user was at least the day before
+    $DaysSinceLastRun = Get-DaysSinceLastRun
+    if ($DaysSinceLastRun -eq 0) {
+        Write-Log -Message "Toast notification has already run today. Skipping until at least tomorrow"
+        Exit 1
+    }
 }
 # Checking for conflicts in config. Some combinations makes no sense, thus trying to prevent those from happening
 if (($UpgradeOS -eq "True") -AND ($PendingRebootCheck -eq "True")) {

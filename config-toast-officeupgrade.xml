@@ -5,6 +5,8 @@
 	<Feature Name="PendingRebootUptime" Enabled="False" />	<!-- Enables the toast for reminding users of restarting their device if it exceeds the uptime defined in MaxUptimeDays -->
 	<Feature Name="PendingRebootCheck" Enabled="False" />	<!-- Enables the toast for reminding users of pending reboots found in registry/WMI. Might not suit ConfigMgr all too well, as if a pending reboot is found, further deployments won't run -->
 	<Feature Name="ADPasswordExpiration" Enabled="False" />	<!-- Enables the toast for reminding users of expiring Active Directory passwords -->
+	<Feature Name="RunOncePerDay" Enabled="False" />	<!-- Ensures that the toast will be displayed no more than one time each day -->
+	<Feature Name="RunOnce" Enabled="False" />	<!-- Ensures that the toast will be displayed no more than one time each day -->
 	<Option Name="TargetOS" Build="19041" />	<!-- The actual build number of the targeted OS. 19041 = 2004 | 18363 = 1909 | 18362 = 1903 | 17763 = 1809. This option has no effect if OSUpgrade is set to False -->
 	<Option Name="MaxUptimeDays" Value="-6" />	<!-- When using the toast for checking for pending reboots. A reboot is considered pending if computer uptime exceeds the value set here -->
 	<Option Name="PendingRebootUptimeText" Enabled="False" />	<!-- Adds an additional group to the toast with text about the uptime of the computer -->

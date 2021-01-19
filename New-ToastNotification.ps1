@@ -31,7 +31,7 @@
               Added ToastReboot protocol example, enabling the toast to carry out a potential reboot.
 
     1.3   -   All text elements in the toast notification is now customizeable through the config.xml
-              Expanded the options for finding given name. Now also looking in WMI if no local AD is available. 
+              Expanded the options for finding given name. Now also looking in WMI if no local AD is available.
               Added Get-WindowsVersion function: Testing for supported Windows version
               Added Test-WindowsPushNotificationsEnabled function: Testing for OS toast blockers
               Added some more detailed logging
@@ -40,13 +40,13 @@
                 - Fixed a few script errors
                 - More text options
 
-    1.4   -   Added new feature for checking for local active directory password expiration. 
+    1.4   -   Added new feature for checking for local active directory password expiration.
               If the password is about to expire (days configured in config.xml), the toast notification will display reminding the users to change their password
 
     1.4.1 -   Get-ADPasswordExpiration function modified to not requiring the AD Powershell module. Thank you @ Andrew Wells :-)
               Improved logging for when no toast notifications are displayed
               More commenting
-              
+
     1.4.2 -   Bug fixes to the date formatting of ADPasswordExpiration now correctly supporting different cultures
 
     1.4.3 -   Some minor corrections to the get-givenname function when retreiving first name from WMI and registry
@@ -61,10 +61,10 @@
               Created Display-ToastNotification function
                 - Displaying the toast notification as been trimmed and merged into its own function
               Created Test-NTsystem function
-                - Testing if the script is being run as SYSTEM. This is not supported  
+                - Testing if the script is being run as SYSTEM. This is not supported
               Converted all Get-WMIObject to Get-CimInstance
                 - Get-WMIObject has been deprecated and is replaced with Get-CimInstance
-    
+
     1.7   -   Added multilanguage support. Thank you Matt Benninge @matbe
                 - Script and config files now support multiple languages
                 - Note that old config xml files needs to be updated to support this
@@ -102,7 +102,7 @@
                 - Updated all custom action scripts to invoke their respective action via WMI
                     - Rewritten all custom action scripts
                 - Added logic allowing new custom action scripts to be created if necessary
-                    - Now checks script version in registry 
+                    - Now checks script version in registry
                     - If newer version is available from the script, new custom action scripts will be created
                         - This allows me to make sure the relevant scripts are in place in case I change something along the way
                 - Modified script output of custom script for RunPackageID to pick up Program ID dynamically
@@ -124,11 +124,11 @@
               Added Enable-WindowsPushNotifications function // Thank you @ Trevor Jones: https://smsagent.blog/2020/11/12/prevent-users-from-disabling-toast-notifications-can-it-be-done/
                 - This will force enable Windows toast notification for the logged on user, if generally disabled
                     - A Windows service will be restarted in the process in the context of the user
-              
+
 
 .LINK
     https://www.imab.dk/windows-10-toast-notification-script/
-#> 
+#>
 
 [CmdletBinding()]
 param(
@@ -136,7 +136,7 @@ param(
     [string]$Config
 )
 
-######### FUNCTIONS #########
+#region ######## FUNCTIONS #########
 
 # Create Write-Log function
 function Write-Log() {
@@ -218,7 +218,7 @@ function Test-PendingRebootRegistry() {
 
 # Create Pending Reboot function for WMI via ConfigMgr client
 function Test-PendingRebootWMI() {
-    Write-Log -Message "Running Test-PendingRebootWMI function"   
+    Write-Log -Message "Running Test-PendingRebootWMI function"
     if (Get-Service -Name ccmexec -ErrorAction SilentlyContinue) {
         Write-Log -Message "Computer has ConfigMgr client installed - checking for pending reboots in WMI"
         $Util = [wmiclass]"\\.\root\ccm\clientsdk:CCM_ClientUtilities"
@@ -380,9 +380,9 @@ function Get-ADPasswordExpiration([string]$fADPasswordExpirationDays) {
             $Result = $Searcher.FindOne();
             $ExpiryDate = [DateTime]::FromFileTime([Int64]::Parse((($Result.Properties["msDS-UserPasswordExpiryTimeComputed"])[0]).ToString()))
         }
-        catch { 
+        catch {
             Write-Log -Level Error -Message "Failed to retrieve password expiration date from Active Directory. Script is continuing, but without password expiration date"
-            
+
         }
         if ($ExpiryDate) {
             Write-Log -Message "Password expiration date found. Password is expiring on $ExpiryDate. Calculating time to expiration"
@@ -428,7 +428,7 @@ function Get-DynamicDeadline() {
             try {
                 $PackageID = Get-CimInstance -Namespace root\ccm\clientsdk -Query "SELECT * FROM CCM_Program where PackageID = '$DynDeadlineValue'"
             }
-            catch { 
+            catch {
                 Write-Log -Level Error -Message "Failed to get Package ID from WMI"
             }
         }
@@ -438,10 +438,10 @@ function Get-DynamicDeadline() {
             $UpdateID = Get-CMUpdate
         }
         # Getting application information from WMI
-        elseif ($RunApplicationIDEnabled -eq "True") {
+        elseif ($RunApplicationIDValue) {
             Write-Log -Message "RunApplicationIDEnabled is True. Trying to get deadline information based on application id"
             try {
-                $ApplicationID = Get-CimInstance -Namespace root\ccm\clientsdk -Query "SELECT * FROM CCM_Application where ID = '$DynDeadlineValue'"
+                $ApplicationID = Get-CimInstance -Namespace root\ccm\clientsdk -Query "SELECT * FROM CCM_Application where ID = '$RunApplicationIDValue'"
             }
             catch {
                 Write-Log -Level Error -Message "Failed to get Application ID from WMI"
@@ -568,13 +568,13 @@ function Get-CMUpdate() {
 function Write-PackageIDRegistry() {
     Write-Log -Message "Running Write-PackageIDRegistry function"
     $RegistryPath = "HKCU:\SOFTWARE\ToastNotificationScript"
-    $RegistryName = "RunPackageID"    
+    $RegistryName = "RunPackageID"
     # Making sure that the registry path being used exists
     if (-NOT(Test-Path -Path $RegistryPath)) {
         try {
             New-Item -Path $RegistryPath -Force
         }
-        catch { 
+        catch {
             Write-Log -Message "Error. Could not create ToastNotificationScript registry path" -Level Error
         }
     }
@@ -586,7 +586,7 @@ function Write-PackageIDRegistry() {
             try {
                 $TestPackageID = Get-CimInstance -Namespace root\ccm\clientsdk -Query "SELECT * FROM CCM_Program WHERE PackageID = '$RunPackageIDValue'"
             }
-            catch { 
+            catch {
                 Write-Log -Level Error -Message "Failed to retrieve $RunPackageIDValue from WMI"
             }
             # If the PackageID is found in WMI with the ConfigMgr client, tattoo that PackageID into registry
@@ -595,7 +595,7 @@ function Write-PackageIDRegistry() {
                 Write-Log -Message "Writing the PackageID to registry"
                 if ((Get-ItemProperty -Path $RegistryPath -Name $RegistryName -ErrorAction SilentlyContinue).$RegistryName -ne $RunPackageIDValue) {
                     try {
-                        New-ItemProperty -Path $RegistryPath -Name $RegistryName -Value $RunPackageIDValue -PropertyType "String" -Force   
+                        New-ItemProperty -Path $RegistryPath -Name $RegistryName -Value $RunPackageIDValue -PropertyType "String" -Force
                     }
                     catch {
                         Write-Log -Level Error -Message "Failed to write PackageID: $RunPackageIDValue to registry"
@@ -614,21 +614,8 @@ function Write-PackageIDRegistry() {
     }
 }
 
-# Create Write-ApplicationIDRegistry function
-function Write-ApplicationIDRegistry() {
-    Write-Log -Message "Running Write-ApplicationIDRegistry function"
-    $RegistryPath = "HKCU:\SOFTWARE\ToastNotificationScript"
-    $RegistryName = "RunApplicationID"    
-    # Making sure that the registry path being used exists
-    if (-NOT(Test-Path -Path $RegistryPath)) {
-        try {
-            New-Item -Path $RegistryPath -Force
-        }
-        catch { 
-            Write-Log -Level Error -Message "Error. Could not create ToastNotificationScript registry path"
-        }
-    }
-    # If the ApplicationID specified in the config.xml is picked up
+# Create Test-ApplicationID function for checking, that App with given ID is deployed to the client
+function Test-ApplicationID() {
     if ($RunApplicationIDValue) {
         # If the ConfigMgr service exist
         if (Get-Service -Name ccmexec -ErrorAction SilentlyContinue) {
@@ -636,22 +623,13 @@ function Write-ApplicationIDRegistry() {
             try {
                 $TestApplicationID = Get-CimInstance -ClassName CCM_Application -Namespace root\ccm\clientsdk | Where-Object {$_.Id -eq $RunApplicationIDValue}
             }
-            catch { 
+            catch {
                 Write-Log -Level Error -Message "Failed to retrieve $RunApplicationIDValue from WMI"
             }
 
             # If the ApplicationID is found in WMI with the ConfigMgr client, tattoo that ApplicationID into registry
             if ($TestApplicationID) {
                 Write-Log -Message "ApplicationID: $RunApplicationIDValue was found in WMI as deployed to the client"
-                Write-Log -Message "Writing the ApplicationID to registry"
-                if ((Get-ItemProperty -Path $RegistryPath -Name $RegistryName -ErrorAction SilentlyContinue).$RegistryName -ne $RunApplicationIDValue) {
-                    try {
-                        New-ItemProperty -Path $RegistryPath -Name $RegistryName -Value $RunApplicationIDValue -PropertyType "String" -Force   
-                    }
-                    catch {
-                        Write-Log -Level Error -Message "Failed to write ApplicationID: $RunApplicationIDValue to registry"
-                    }
-                }
             }
             else {
                 Write-Log -Level Error -Message "ApplicationID: $RunApplicationIDValue was not found in WMI as deployed to the client. Please check the config.xml or deployment in ConfigMgr"
@@ -672,13 +650,13 @@ function Write-ApplicationIDRegistry() {
 function Write-UpdateIDRegistry() {
     Write-Log -Message "Running Write-UpdateIDRegistry function"
     $RegistryPath = "HKCU:\SOFTWARE\ToastNotificationScript"
-    $RegistryName = "RunUpdateID"    
+    $RegistryName = "RunUpdateID"
     # Making sure that the registry path being used exists
     if (-NOT(Test-Path -Path $RegistryPath)) {
         try {
             New-Item -Path $RegistryPath -Force
         }
-        catch { 
+        catch {
             Write-Log -Level Error -Message "Error. Could not create ToastNotificationScript registry path"
         }
     }
@@ -690,7 +668,7 @@ function Write-UpdateIDRegistry() {
             try {
                 $GetUpdateID = Get-CMUpdate
             }
-            catch { 
+            catch {
                 Write-Log -Level Error -Message "Failed to successfully run the Get-CMUpdate function"
             }
 
@@ -700,7 +678,7 @@ function Write-UpdateIDRegistry() {
                 Write-Log -Message "Writing the UpdateID to registry"
                 if ((Get-ItemProperty -Path $RegistryPath -Name $RegistryName -ErrorAction SilentlyContinue).$RegistryName -ne $GetUpdateID.UpdateID) {
                     try {
-                        New-ItemProperty -Path $RegistryPath -Name $RegistryName -Value $GetUpdateID.UpdateID -PropertyType "String" -Force   
+                        New-ItemProperty -Path $RegistryPath -Name $RegistryName -Value $GetUpdateID.UpdateID -PropertyType "String" -Force
                     }
                     catch {
                         Write-Log -Level Error -Message "Failed to write UpdateID: $($GetUpdateID.UpdateID) to registry"
@@ -738,26 +716,26 @@ function Display-ToastNotification() {
                 $speak.SelectVoiceByHints("female",65)
                 $speak.Speak($CustomAudioTextToSpeech)
                 $speak.Dispose()
-            }    
+            }
         }
         Exit 0
     }
-    catch { 
+    catch {
         Write-Log -Message "Something went wrong when displaying the toast notification" -Level Error
         Write-Log -Message "Make sure the script is running as the logged on user" -Level Error
         # Using Write-Output for sending status to IME log when used with Endpoint Analytics in Intune
         Write-Output "Something went wrong when displaying the toast notification. Make sure the script is running as the logged on user"
-        Exit 1 
+        Exit 1
     }
 }
 
 # Create Test-NTSystem function
 # If the script is being run as SYSTEM, the toast notification won't display
-function Test-NTSystem() {  
+function Test-NTSystem() {
     $currentUser = [Security.Principal.WindowsIdentity]::GetCurrent()
     if ($currentUser.IsSystem -eq $true) {
         Write-Log -Message "The script is being run as SYSTEM. This is not supported. The script needs the current user's context" -Level Error
-        $true  
+        $true
     }
     elseif ($currentUser.IsSystem -eq $false) {
         $false
@@ -765,7 +743,7 @@ function Test-NTSystem() {
 }
 
 # Create Write-CustomActionRegistry function
-# This function creates custom protocols for the logged on user in HKCU. 
+# This function creates custom protocols for the logged on user in HKCU.
 # This will remove the need to create the protocols outside of the toast notification script
 # HUGE shout-out to Chad Brower // @Brower_Cha on Twitter
 # Added in version 2.0.0
@@ -782,13 +760,13 @@ function Write-CustomActionRegistry() {
     )
     Write-Log -Message "Running Write-CustomActionRegistry function: $ActionType"
     switch ($ActionType) {
-        ToastReboot { 
+        ToastReboot {
             # Build out registry for custom action for rebooting the device via the action button
-            try { 
+            try {
                 New-Item "HKCU:\Software\Classes\$($ActionType)\shell\open\command" -Force -ErrorAction SilentlyContinue | Out-Null
                 New-ItemProperty -LiteralPath "HKCU:\Software\Classes\$($ActionType)" -Name 'URL Protocol' -Value '' -PropertyType String -Force -ErrorAction SilentlyContinue | Out-Null
                 New-ItemProperty -LiteralPath "HKCU:\Software\Classes\$($ActionType)" -Name '(default)' -Value "URL:$($ActionType) Protocol" -PropertyType String -Force -ErrorAction SilentlyContinue | Out-Null
-                $RegCommandValue = $RegCommandPath  + '\' + "$($ActionType).cmd"
+                $RegCommandValue = $RegCommandPath  + '\' + "$($ActionType).cmd %1"
                 New-ItemProperty -LiteralPath "HKCU:\Software\Classes\$($ActionType)\shell\open\command" -Name '(default)' -Value $RegCommandValue -PropertyType String -Force -ErrorAction SilentlyContinue | Out-Null
             }
             catch {
@@ -797,9 +775,9 @@ function Write-CustomActionRegistry() {
                 Write-Log -Level Error -Message "Error message: $ErrorMessage"
             }
         }
-        ToastRunUpdateID { 
+        ToastRunUpdateID {
             # Build out registry for custom action for running software update via the action button
-            try { 
+            try {
                 New-Item "HKCU:\Software\Classes\$($ActionType)\shell\open\command" -Force -ErrorAction SilentlyContinue | Out-Null
                 New-ItemProperty -LiteralPath "HKCU:\Software\Classes\$($ActionType)" -Name 'URL Protocol' -Value '' -PropertyType String -Force -ErrorAction SilentlyContinue | Out-Null
                 New-ItemProperty -LiteralPath "HKCU:\Software\Classes\$($ActionType)" -Name '(default)' -Value "URL:$($ActionType) Protocol" -PropertyType String -Force -ErrorAction SilentlyContinue | Out-Null
@@ -812,9 +790,9 @@ function Write-CustomActionRegistry() {
                 Write-Log -Level Error -Message "Error message: $ErrorMessage"
             }
         }
-        ToastRunPackageID { 
+        ToastRunPackageID {
             # Build out registry for custom action for running packages and task sequences via the action button
-            try { 
+            try {
                 New-Item "HKCU:\Software\Classes\$($ActionType)\shell\open\command" -Force -ErrorAction SilentlyContinue | Out-Null
                 New-ItemProperty -LiteralPath "HKCU:\Software\Classes\$($ActionType)" -Name 'URL Protocol' -Value '' -PropertyType String -Force -ErrorAction SilentlyContinue | Out-Null
                 New-ItemProperty -LiteralPath "HKCU:\Software\Classes\$($ActionType)" -Name '(default)' -Value "URL:$($ActionType) Protocol" -PropertyType String -Force -ErrorAction SilentlyContinue | Out-Null
@@ -827,9 +805,9 @@ function Write-CustomActionRegistry() {
                 Write-Log -Level Error -Message "Error message: $ErrorMessage"
             }
         }
-        ToastRunApplicationID { 
+        ToastRunApplicationID {
             # Build out registry for custom action for running applications via the action button
-            try { 
+            try {
                 New-Item "HKCU:\Software\Classes\$($ActionType)\shell\open\command" -Force -ErrorAction SilentlyContinue | Out-Null
                 New-ItemProperty -LiteralPath "HKCU:\Software\Classes\$($ActionType)" -Name 'URL Protocol' -Value '' -PropertyType String -Force -ErrorAction SilentlyContinue | Out-Null
                 New-ItemProperty -LiteralPath "HKCU:\Software\Classes\$($ActionType)" -Name '(default)' -Value "URL:$($ActionType) Protocol" -PropertyType String -Force -ErrorAction SilentlyContinue | Out-Null
@@ -868,7 +846,7 @@ function Write-CustomActionScript() {
                 try {
                     New-item -Path $Path -Name $CMDFileName -Force -OutVariable PathInfo | Out-Null
                 }
-                catch { 
+                catch {
                     $ErrorMessage = $_.Exception.Message
                     Write-Log -Level Error -Message "Error message: $ErrorMessage"
                 }
@@ -896,7 +874,7 @@ function Write-CustomActionScript() {
                 try {
                     New-item -Path $Path -Name $PS1FileName -Force -OutVariable PathInfo | Out-Null
                 }
-                catch { 
+                catch {
                     $ErrorMessage = $_.Exception.Message
                     Write-Log -Level Error -Message "Error message: $ErrorMessage"
                 }
@@ -940,7 +918,7 @@ exit 0
                  }
                 catch {
                     $ErrorMessage = $_.Exception.Message
-                    Write-Log -Level Error -Message "Error message: $ErrorMessage"              
+                    Write-Log -Level Error -Message "Error message: $ErrorMessage"
                 }
                 try {
                     $GetCustomScriptPath = $PathInfo.FullName
@@ -963,7 +941,7 @@ exit 0
             # Do not run another type; break
             Break
         }
-        # Script output updated in 2.0.1 to dynamically pick up the Program ID. 
+        # Script output updated in 2.0.1 to dynamically pick up the Program ID.
         # Previously this was hard coded to '*', making it work for task sequences only. Now also works for regular packages (only one program).
         # Create custom scripts to run packages and task sequences directly from the action button
         ToastRunPackageID {
@@ -973,7 +951,7 @@ exit 0
                 try {
                     New-item -Path $Path -Name $CMDFileName -Force -OutVariable PathInfo | Out-Null
                 }
-                catch { 
+                catch {
                     $ErrorMessage = $_.Exception.Message
                     Write-Log -Level Error -Message "Error message: $ErrorMessage"
                 }
@@ -1001,7 +979,7 @@ exit 0
                 try {
                     New-item -Path $Path -Name $PS1FileName -Force -OutVariable PathInfo | Out-Null
                 }
-                catch { 
+                catch {
                     $ErrorMessage = $_.Exception.Message
                     Write-Log -Level Error -Message "Error message: $ErrorMessage"
                 }
@@ -1040,17 +1018,17 @@ exit 0
         ToastRunApplicationID {
             try {
                 $CMDFileName = $Type + '.cmd'
-                $CMDFilePath = $Path + '\' + $CMDFileName    
+                $CMDFilePath = $Path + '\' + $CMDFileName
                 try {
                     New-item -Path $Path -Name $CMDFileName -Force -OutVariable PathInfo | Out-Null
                 }
-                catch { 
+                catch {
                     $ErrorMessage = $_.Exception.Message
                     Write-Log -Level Error -Message "Error message: $ErrorMessage"
                 }
                 try {
                     $GetCustomScriptPath = $PathInfo.FullName
-                    [String]$Script = "powershell.exe -ExecutionPolicy Bypass -NoLogo -NonInteractive -NoProfile -WindowStyle Hidden -File `"$global:CustomScriptsPath\ToastRunApplicationID.ps1`""
+                    [String]$Script = "powershell.exe -ExecutionPolicy Bypass -NoLogo -NonInteractive -NoProfile -WindowStyle Hidden -File `"$global:CustomScriptsPath\ToastRunApplicationID.ps1`" %1"
                     if (-NOT[string]::IsNullOrEmpty($Script)) {
                         Out-File -FilePath $GetCustomScriptPath -InputObject $Script -Encoding ASCII -Force
                     }
@@ -1073,26 +1051,32 @@ exit 0
                 try {
                     New-item -Path $Path -Name $PS1FileName -Force -OutVariable PathInfo | Out-Null
                 }
-                catch { 
+                catch {
                     $ErrorMessage = $_.Exception.Message
                     Write-Log -Level Error -Message "Error message: $ErrorMessage"
                 }
                 try {
                     $GetCustomScriptPath = $PathInfo.FullName
                     [String]$Script = @'
-$RegistryPath = "HKCU:\SOFTWARE\ToastNotificationScript"
-$ApplicationID = (Get-ItemProperty -Path $RegistryPath -Name "RunApplicationID").RunApplicationID
-$TestApplicationID = Get-CimInstance -ClassName CCM_Application -Namespace ROOT\ccm\ClientSDK | Where-Object {$_.Id -eq $ApplicationID}
+$ApplicationID = $args[0]
+if (!$ApplicationID) { throw "ApplicationID wasn't specified" }
+$ApplicationID = ($ApplicationID -replace '^[^:]*:').trim()
+if ($ApplicationID -notmatch "^ScopeId_.+/Application_.+") { throw "ApplicationID ($ApplicationID) isn't in correct format (regex `"^ScopeId_.+/Application_.+`"" }
+
+$TestApplicationID = Get-CimInstance -ClassName CCM_Application -Namespace ROOT\ccm\ClientSDK | Where-Object { $_.Id -eq $ApplicationID }
+
 $AppArguments = @{
     Id = $TestApplicationID.Id
     IsMachineTarget = $TestApplicationID.IsMachineTarget
     Revision = $TestApplicationID.Revision
 }
+
 if (-NOT[string]::IsNullOrEmpty($TestApplicationID)) {
     if ($TestApplicationID.InstallState -eq "NotInstalled") { Invoke-CimMethod -Namespace "ROOT\ccm\clientSDK" -ClassName CCM_Application -MethodName Install -Arguments $AppArguments }
     elseif ($TestApplicationID.InstallState -eq "Installed") { Invoke-CimMethod -Namespace "ROOT\ccm\clientSDK" -ClassName CCM_Application -MethodName Repair -Arguments $AppArguments }
     if (Test-Path -Path "$env:windir\CCM\ClientUX\SCClient.exe") { Start-Process -FilePath "$env:windir\CCM\ClientUX\SCClient.exe" -ArgumentList "SoftwareCenter:Page=InstallationStatus" -WindowStyle Maximized }
 }
+
 exit 0
 '@
                     if (-NOT[string]::IsNullOrEmpty($Script)) {
@@ -1116,7 +1100,9 @@ exit 0
     }
 }
 
-######### GENERAL VARIABLES #########
+#endregion ######## FUNCTIONS #########
+
+#region ######## GENERAL VARIABLES #########
 # Global variables
 # Setting global script version
 $global:ScriptVersion = "2.1.0"
@@ -1144,7 +1130,7 @@ if (-NOT(Test-Path -Path $global:RegistryPath)) {
     try {
         New-Item -Path $global:RegistryPath -Force | Out-Null
     }
-    catch { 
+    catch {
         Write-Log -Message "Failed to create the ToastNotificationScript registry path: $global:RegistryPath" -Level Error
         Write-Log -Message "This is required. Script will now exit" -Level Error
         Exit 1
@@ -1184,7 +1170,7 @@ $WindowsPushNotificationsEnabled = Test-WindowsPushNotificationsEnabled
 if ($WindowsPushNotificationsEnabled -eq $False) {
     Enable-WindowsPushNotifications
 }
-# If no config file is set as parameter, use the default. 
+# If no config file is set as parameter, use the default.
 # Default is executing directory. In this case, the config-toast.xml must exist in same directory as the New-ToastNotification.ps1 file
 if (-NOT($Config)) {
     Write-Log -Message "No config file set as parameter. Using local config file"
@@ -1225,7 +1211,7 @@ if (($Config.StartsWith("https://")) -OR ($Config.StartsWith("http://"))) {
 elseif (-NOT($Config.StartsWith("https://")) -OR (-NOT($Config.StartsWith("http://")))) {
     Write-Log -Message "Specified config file seems hosted [locally or fileshare]. Treating it accordingly"
     if (Test-Path -Path $Config) {
-        try { 
+        try {
             $Xml = [xml](Get-Content -Path $Config -Encoding UTF8)
             Write-Log -Message "Successfully loaded $Config"
         }
@@ -1252,13 +1238,13 @@ else {
 if(-NOT[string]::IsNullOrEmpty($Xml)) {
     try {
         Write-Log -Message "Loading xml content from $Config into variables"
-        # Load Toast Notification features 
+        # Load Toast Notification features
         $ToastEnabled = $Xml.Configuration.Feature | Where-Object {$_.Name -like 'Toast'} | Select-Object -ExpandProperty 'Enabled'
         $UpgradeOS = $Xml.Configuration.Feature | Where-Object {$_.Name -like 'UpgradeOS'} | Select-Object -ExpandProperty 'Enabled'
         $PendingRebootUptime = $Xml.Configuration.Feature | Where-Object {$_.Name -like 'PendingRebootUptime'} | Select-Object -ExpandProperty 'Enabled'
         $PendingRebootCheck = $Xml.Configuration.Feature | Where-Object {$_.Name -like 'PendingRebootCheck'} | Select-Object -ExpandProperty 'Enabled'
         $ADPasswordExpiration = $Xml.Configuration.Feature | Where-Object {$_.Name -like 'ADPasswordExpiration'} | Select-Object -ExpandProperty 'Enabled'
-        # Load Toast Notification options   
+        # Load Toast Notification options
         $PendingRebootUptimeTextEnabled = $Xml.Configuration.Option | Where-Object {$_.Name -like 'PendingRebootUptimeText'} | Select-Object -ExpandProperty 'Enabled'
         $MaxUptimeDays = $Xml.Configuration.Option | Where-Object {$_.Name -like 'MaxUptimeDays'} | Select-Object -ExpandProperty 'Value'
         $PendingRebootCheckTextEnabled = $Xml.Configuration.Option | Where-Object {$_.Name -like 'PendingRebootCheckText'} | Select-Object -ExpandProperty 'Enabled'
@@ -1274,8 +1260,6 @@ if(-NOT[string]::IsNullOrEmpty($Xml)) {
         $CreateScriptsProtocolsEnabled = $Xml.Configuration.Option | Where-Object {$_.Name -like 'CreateScriptsAndProtocols'} | Select-Object -ExpandProperty 'Enabled'
         $RunPackageIDEnabled = $Xml.Configuration.Option | Where-Object {$_.Name -like 'RunPackageID'} | Select-Object -ExpandProperty 'Enabled'
         $RunPackageIDValue = $Xml.Configuration.Option | Where-Object {$_.Name -like 'RunPackageID'} | Select-Object -ExpandProperty 'Value'
-        $RunApplicationIDEnabled = $Xml.Configuration.Option | Where-Object {$_.Name -like 'RunApplicationID'} | Select-Object -ExpandProperty 'Enabled'
-        $RunApplicationIDValue = $Xml.Configuration.Option | Where-Object {$_.Name -like 'RunApplicationID'} | Select-Object -ExpandProperty 'Value'
         # ConfigMgr Software Updates
         # Added in version 2.0.0
         $RunUpdateIDEnabled = $Xml.Configuration.Option | Where-Object {$_.Name -like 'RunUpdateID'} | Select-Object -ExpandProperty 'Enabled'
@@ -1289,7 +1273,7 @@ if(-NOT[string]::IsNullOrEmpty($Xml)) {
         $CustomAudio = $Xml.Configuration.Option | Where-Object {$_.Name -like 'CustomAudio'} | Select-Object -ExpandProperty 'Enabled'
         $LogoImageFileName = $Xml.Configuration.Option | Where-Object {$_.Name -like 'LogoImageName'} | Select-Object -ExpandProperty 'Value'
         $HeroImageFileName = $Xml.Configuration.Option | Where-Object {$_.Name -like 'HeroImageName'} | Select-Object -ExpandProperty 'Value'
-        # Rewriting image variables to cater for images being hosted online, as well as being hosted locally. 
+        # Rewriting image variables to cater for images being hosted online, as well as being hosted locally.
         # Needed image including path in one variable
         if ((-NOT[string]::IsNullOrEmpty($LogoImageFileName)) -OR (-NOT[string]::IsNullOrEmpty($HeroImageFileName)))  {
             $LogoImage = $ImagesPath + "/" + $LogoImageFileName
@@ -1351,12 +1335,44 @@ if(-NOT[string]::IsNullOrEmpty($Xml)) {
         $HoursText = $XmlLang.Text | Where-Object {$_.Name -like 'HoursText'} | Select-Object -ExpandProperty '#text'
 	    $ComputerUptimeText = $XmlLang.Text | Where-Object {$_.Name -like 'ComputerUptimeText'} | Select-Object -ExpandProperty '#text'
         $ComputerUptimeDaysText = $XmlLang.Text | Where-Object {$_.Name -like 'ComputerUptimeDaysText'} | Select-Object -ExpandProperty '#text'
-        Write-Log -Message "Successfully loaded xml content from $Config"     
+        Write-Log -Message "Successfully loaded xml content from $Config"
     }
     catch {
         Write-Log -Message "Xml content from $Config was not loaded properly"
         Exit 1
     }
+}
+
+#endregion ####### GENERAL VARIABLES #########
+
+#region ####### CHECKS #########
+
+if ($ActionButton1Content -match "^ToastRunApplicationID:\s*$") {
+    Write-Log -Level Error -Message "Error. Incomplete Value in the $Config file Action1 tag"
+    Write-Log -Level Error -Message "Error. You have to specify also the Application share link in format: ToastRunApplicationID:ScopeId_XXX/Application_YYY"
+    Write-Log -Level Error -Message "Error. Application Share link can be found in Software Center by clicking on share icon on top right of the screen"
+    Exit 1
+}
+if ($ActionButton2Content -match "^ToastRunApplicationID:\s*$") {
+    Write-Log -Level Error -Message "Error. Incomplete Value in the $Config file Action2 tag"
+    Write-Log -Level Error -Message "Error. You have to specify also the Application share link in format: ToastRunApplicationID:ScopeId_XXX/Application_YYY"
+    Write-Log -Level Error -Message "Error. Application Share link can be found in Software Center by clicking on share icon on top right of the screen"
+    Exit 1
+}
+# Check if given Application ID is valid
+if ($ActionButton1Content -match "^ToastRunApplicationID:ScopeId_.+/Application_.+") {
+    $RunApplicationIDValue = ($ActionButton1Content -replace '^[^:]*:').trim()
+    Test-ApplicationID
+}
+if ($ActionButton2Content -match "^ToastRunApplicationID:ScopeId_.+/Application_.+") {
+    $RunApplicationIDValue = ($ActionButton2Content -replace '^[^:]*:').trim()
+    Test-ApplicationID
+}
+# because of dynamic deadline retrieval I allow just one installation
+if ($ActionButton2Content -match "^ToastRunApplicationID:" -and $RunApplicationIDValue) {
+    Write-Log -Level Error -Message "Error. Multiple Application installations defined in the $Config file through the Action tags"
+    Write-Log -Level Error -Message "Error. Only one application can be installed, so modify one of Action options"
+    Exit 1
 }
 
 # Check if toast is enabled in config.xml
@@ -1366,32 +1382,32 @@ if ($ToastEnabled -ne "True") {
 }
 # Checking for conflicts in config. Some combinations makes no sense, thus trying to prevent those from happening
 if (($UpgradeOS -eq "True") -AND ($PendingRebootCheck -eq "True")) {
-    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
+    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file"
     Write-Log -Level Error -Message "Error. You can't have both ÜpgradeOS feature set to True AND PendingRebootCheck feature set to True at the same time. Check your config"
     Exit 1
 }
 if (($UpgradeOS -eq "True") -AND ($PendingRebootUptime -eq "True")) {
-    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
+    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file"
     Write-Log -Level Error -Message "Error. You can't have both ÜpgradeOS feature set to True AND PendingRebootUptime feature set to True at the same time. Check your config"
     Exit 1
 }
 if (($PendingRebootCheck -eq "True") -AND ($PendingRebootUptime -eq "True")) {
-    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
+    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file"
     Write-Log -Level Error -Message "Error. You currently can't have both PendingReboot features set to True. Please use them seperately"
     Exit 1
 }
 if (($ADPasswordExpiration -eq "True") -AND ($UpgradeOS -eq "True")) {
-    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
+    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file"
     Write-Log -Level Error -Message "Error. You can't have both ADPasswordExpiration AND UpgradeOS set to True at the same time. Check your config"
     Exit 1
 }
 if (($ADPasswordExpiration -eq "True") -AND ($PendingRebootCheck -eq "True")) {
-    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
+    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file"
     Write-Log -Level Error -Message "Error. You can't have both ADPasswordExpiration AND PendingRebootCheck set to True at the same time. Check your config"
     Exit 1
 }
 if (($ADPasswordExpiration -eq "True") -AND ($PendingRebootUptime -eq "True")) {
-    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
+    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file"
     Write-Log -Level Error -Message "Error. You can't have both ADPasswordExpiration AND PendingRebootUptime set to True at the same time. Check your config"
     Exit 1
 }
@@ -1401,75 +1417,63 @@ if (($SCAppStatus -eq "True") -AND (-NOT(Get-Service -Name ccmexec))) {
     Exit 1
 }
 if (($SCAppStatus -eq "True") -AND ($PSAppStatus -eq "True")) {
-    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
+    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file"
     Write-Log -Level Error -Message "Error. You can't have both SoftwareCenter app set to True AND PowershellApp set to True at the same time. Check your config"
     Exit 1
 }
 if (($SCAppStatus -ne "True") -AND ($PSAppStatus -ne "True")) {
-    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
+    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file"
     Write-Log -Level Error -Message "Error. You need to enable at least 1 app in the config doing the notification. ie. Software Center or Powershell. Check your config"
     Exit 1
 }
 if (($UpgradeOS -eq "True") -AND ($PendingRebootUptimeTextEnabled -eq "True")) {
-    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
+    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file"
     Write-Log -Level Error -Message "Error. You can't have UpgradeOS set to True and PendingRebootUptimeText set to True at the same time. Check your config"
     Exit 1
 }
 if (($UpgradeOS -eq "True") -AND ($PendingRebootCheckTextEnabled -eq "True")) {
-    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
+    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file"
     Write-Log -Level Error -Message "Error. You can't have UpgradeOS set to True and PendingRebootCheckText set to True at the same time. Check your config"
     Exit 1
 }
 if (($PendingRebootUptimeTextEnabled -eq "True") -AND ($PendingRebootCheckTextEnabled -eq "True")) {
-    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
+    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file"
     Write-Log -Level Error -Message "Error. You can't have PendingRebootUptimeText set to True and PendingRebootCheckText set to True at the same time"
     Write-Log -Level Error -Message "You should only enable one of the text options. Check your config"
     Exit 1
 }
 if (($PendingRebootCheck -eq "True") -AND ($PendingRebootUptimeTextEnabled -eq "True")) {
-    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
+    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file"
     Write-Log -Level Error -Message "Error. You can't have PendingRebootCheck set to True and PendingRebootUptimeText set to True at the same time"
     Write-Log -Level Error -Message "You should use PendingRebootCheck with the PendingRebootCheckText option instead"
     Exit 1
 }
 if (($PendingRebootUptime -eq "True") -AND ($PendingRebootCheckTextEnabled -eq "True")) {
-    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
+    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file"
     Write-Log -Level Error -Message "Error. You can't have PendingRebootUptime set to True and PendingRebootCheckText set to True at the same time"
     Write-Log -Level Error -Message "You should use PendingRebootUptime with the PendingRebootUptimeText option instead. Check your config"
     Exit 1
 }
 if (($ADPasswordExpirationTextEnabled -eq "True") -AND ($PendingRebootCheckTextEnabled -eq "True")) {
-    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
+    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file"
     Write-Log -Level Error -Message "Error. You can't have ADPasswordExpirationTextEnabled set to True and PendingRebootCheckText set to True at the same time"
     Write-Log -Level Error -Message "You should only enable one of the text options. Check your config"
     Exit 1
 }
 if (($ADPasswordExpirationTextEnabled -eq "True") -AND ($PendingRebootUptimeTextEnabled -eq "True")) {
-    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
+    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file"
     Write-Log -Level Error -Message "Error. You can't have ADPasswordExpirationTextEnabled set to True and PendingRebootUptimeTextEnabled set to True at the same time"
     Write-Log -Level Error -Message "You should only enable one of the text options. Check your config"
     Exit 1
 }
 if (($DeadlineEnabled -eq "True") -AND ($DynDeadlineEnabled -eq "True")) {
-    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
+    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file"
     Write-Log -Level Error -Message "Error. You can't have DeadlineEnabled set to True and DynamicDeadlineEnabled set to True at the same time"
     Write-Log -Level Error -Message "You should only enable one of the deadline options. Check your config"
     Exit 1
 }
-if (($RunApplicationIDEnabled -eq "True") -AND ($RunPackageIDEnabled -eq "True")) {
-    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
-    Write-Log -Level Error -Message "Error. You can't have RunApplicationIDEnabled set to True and RunPackageIDEnabled set to True at the same time"
-    Write-Log -Level Error -Message "You should only enable one of the options. Check your config"
-    Exit 1
-}
-if (($RunApplicationIDEnabled -eq "True") -AND ($RunUpdateIDEnabled -eq "True")) {
-    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
-    Write-Log -Level Error -Message "Error. You can't have RunApplicationIDEnabled set to True and RunUpdateIDEnabled set to True at the same time"
-    Write-Log -Level Error -Message "You should only enable one of the options. Check your config"
-    Exit 1
-}
 if (($RunUpdateIDEnabled -eq "True") -AND ($RunPackageIDEnabled -eq "True")) {
-    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
+    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file"
     Write-Log -Level Error -Message "Error. You can't have RunUpdateIDEnabled set to True and RunPackageIDEnabled set to True at the same time"
     Write-Log -Level Error -Message "You should only enable one of the options. Check your config"
     Exit 1
@@ -1478,91 +1482,88 @@ if (($RunUpdateIDEnabled -eq "True") -AND ($RunPackageIDEnabled -eq "True")) {
 # Example: Having RunUpdatesID enabled and expecting the toast action button to trigger installation of an update, but instead reboots the computer
 # Added in version 2.0.0
 if (($Action -eq "ToastRunApplicationID:") -AND ($RunUpdateIDEnabled -eq "True")) {
-    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
+    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file"
     Write-Log -Level Error -Message "You are using the toast notification with RunUpdateIDEnabled set to $RunUpdateIDEnabled, but the action button is set to $Action"
     Write-Log -Level Error -Message "This seems like an unintended configuration. Check your config"
     Exit 1
 }
 if (($Action -eq "ToastRunPackageID:") -AND ($RunUpdateIDEnabled -eq "True")) {
-    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
+    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file"
     Write-Log -Level Error -Message "You are using the toast notification with RunUpdateIDEnabled set to $RunUpdateIDEnabled, but the action button is set to $Action"
     Write-Log -Level Error -Message "This seems like an unintended configuration. Check your config"
     Exit 1
 }
 if (($Action -eq "ToastReboot:") -AND ($RunUpdateIDEnabled -eq "True")) {
-    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
+    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file"
     Write-Log -Level Error -Message "You are using the toast notification with RunUpdateIDEnabled set to $RunUpdateIDEnabled, but the action button is set to $Action"
     Write-Log -Level Error -Message "This seems like an unintended configuration. Check your config"
     Exit 1
 }
 if (($Action -eq "ToastRunApplicationID:") -AND ($RunPackageIDEnabled -eq "True")) {
-    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
+    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file"
     Write-Log -Level Error -Message "You are using the toast notification with RunPackageIDEnabled set to $RunPackageIDEnabled, but the action button is set to $Action"
     Write-Log -Level Error -Message "This seems like an unintended configuration. Check your config"
     Exit 1
 }
 if (($Action -eq "ToastRunUpdateID:") -AND ($RunPackageIDEnabled -eq "True")) {
-    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
+    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file"
     Write-Log -Level Error -Message "You are using the toast notification with RunPackageIDEnabled set to $RunPackageIDEnabled, but the action button is set to $Action"
     Write-Log -Level Error -Message "This seems like an unintended configuration. Check your config"
     Exit 1
 }
 if (($Action -eq "ToastReboot:") -AND ($RunPackageIDEnabled -eq "True")) {
-    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
+    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file"
     Write-Log -Level Error -Message "You are using the toast notification with RunPackageIDEnabled set to $RunPackageIDEnabled, but the action button is set to $Action"
-    Write-Log -Level Error -Message "This seems like an unintended configuration. Check your config"
-    Exit 1
-}
-if (($Action -eq "ToastRunPackageID:") -AND ($RunApplicationIDEnabled -eq "True")) {
-    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
-    Write-Log -Level Error -Message "You are using the toast notification with RunApplicationIDEnabled set to $RunApplicationIDEnabled, but the action button is set to $Action"
-    Write-Log -Level Error -Message "This seems like an unintended configuration. Check your config"
-    Exit 1
-}
-if (($Action -eq "ToastRunUpdateID:") -AND ($RunApplicationIDEnabled -eq "True")) {
-    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
-    Write-Log -Level Error -Message "You are using the toast notification with RunApplicationIDEnabled set to $RunApplicationIDEnabled, but the action button is set to $Action"
-    Write-Log -Level Error -Message "This seems like an unintended configuration. Check your config"
-    Exit 1
-}
-if (($Action -eq "ToastReboot:") -AND ($RunApplicationIDEnabled -eq "True")) {
-    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
-    Write-Log -Level Error -Message "You are using the toast notification with RunApplicationIDEnabled set to $RunApplicationIDEnabled, but the action button is set to $Action"
     Write-Log -Level Error -Message "This seems like an unintended configuration. Check your config"
     Exit 1
 }
 # New checks for conflicting selections. Trying to prevent combinations which will make the toast render without buttons
 # Added in version 2.1.0
 if (($ActionButton1Enabled -ne "True") -AND ($ActionButton2Enabled -eq "True")){
-    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
+    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file"
     Write-Log -Level Error -Message "You can't have ActionButton2 enabled and ActionButton1 not enabled"
     Write-Log -Level Error -Message "ActionButton1 must be enabled for ActionButton2 to be enabled. Check your config"
     Exit 1
 }
 if (($ActionButton2Enabled -eq "True") -AND ($SnoozeButtonEnabled -eq "True")){
-    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
+    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file"
     Write-Log -Level Error -Message "You can't have ActionButton2 enabled and SnoozeButton enabled at the same time"
     Write-Log -Level Error -Message "That will result in too many buttons. Check your config"
     Exit 1
 }
 if (($SnoozeButtonEnabled -eq "True") -AND ($PendingRebootUptimeTextEnabled -eq "True")){
-    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
+    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file"
     Write-Log -Level Error -Message "You can't have SnoozeButton enabled and have PendingRebootUptimeText enabled at the same time"
     Write-Log -Level Error -Message "That will result in too much text and the toast notification will render without buttons. Check your config"
     Exit 1
 }
 if (($SnoozeButtonEnabled -eq "True") -AND ($PendingRebootCheckTextEnabled -eq "True")){
-    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
+    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file"
     Write-Log -Level Error -Message "You can't have SnoozeButton enabled and have PendingRebootCheckText enabled at the same time"
     Write-Log -Level Error -Message "That will result in too much text and the toast notification will render without buttons. Check your config"
     Exit 1
 }
 if (($SnoozeButtonEnabled -eq "True") -AND ($ADPasswordExpirationTextEnabled -eq "True")){
-    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
+    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file"
     Write-Log -Level Error -Message "You can't have SnoozeButton enabled and have ADPasswordExpirationText enabled at the same time"
     Write-Log -Level Error -Message "That will result in too much text and the toast notification will render without buttons. Check your config"
     Exit 1
 }
+# New checks for value format
+    if ($Action1 -match "ToastRunApplicationID:" -and (($Action1.trim() -match " ") -or $Action1 -notmatch "ToastRunApplicationID:ScopeId_.+/Application_.+")) {
+    Write-Log -Level Error -Message "Value of Action1 XML config tag isn't in correct format"
+    Write-Log -Level Error -Message "It should be like: ToastRunApplicationID:ScopeId_5197DD71-3116-4878-A26C-EA6155A28E9B/Application_31e422a6-3905-4f83-b9aa-cf1635648e72"
+    Write-Log -Level Error -Message "Value can be found in Software Center by clicking on share icon of application to install"
+    Exit 1
+}
+    if ($Action2 -match "ToastRunApplicationID:" -and (($Action2.trim() -match " ") -or $Action2 -notmatch "ToastRunApplicationID:ScopeId_.+/Application_.+")) {
+    Write-Log -Level Error -Message "Value of Action2 XML config tag isn't in correct format"
+    Write-Log -Level Error -Message "It should be like: ToastRunApplicationID:ScopeId_5197DD71-3116-4878-A26C-EA6155A28E9B/Application_31e422a6-3905-4f83-b9aa-cf1635648e72"
+    Write-Log -Level Error -Message "Value can be found in Software Center by clicking on share icon of application to install"
+    Exit 1
+}
+
+#endregion ######## CHECKS #########
 
 # Downloading images into user's temp folder if images are hosted online
 if (($LogoImageFileName.StartsWith("https://")) -OR ($LogoImageFileName.StartsWith("http://"))) {
@@ -1576,7 +1577,7 @@ if (($LogoImageFileName.StartsWith("https://")) -OR ($LogoImageFileName.StartsWi
             $LogoImage = $LogoImageTemp
             Write-Log -Message "Successfully downloaded $LogoImageTemp from $LogoImageFileName"
         }
-        catch { 
+        catch {
             Write-Log -Level Error -Message "Failed to download the $LogoImageTemp from $LogoImageFileName"
         }
     }
@@ -1595,7 +1596,7 @@ if (($HeroImageFileName.StartsWith("https://")) -OR ($HeroImageFileName.StartsWi
             $HeroImage = $HeroImageTemp
             Write-Log -Message "Successfully downloaded $HeroImageTemp from $HeroImageFileName"
         }
-        catch { 
+        catch {
             Write-Log -Level Error -Message "Failed to download the $HeroImageTemp from $HeroImageFileName"
         }
     }
@@ -1631,7 +1632,7 @@ if ($CreateScriptsProtocolsEnabled -eq "True") {
                     Write-CustomActionScript -Type ToastRunUpdateID
                     New-ItemProperty -Path $global:RegistryPath -Name $RegistryName -Value $global:ScriptVersion -PropertyType "String" -Force | Out-Null
                 }
-                catch { 
+                catch {
                     Write-Log -Level Error -Message "Something failed during creation of custom scripts and protocols"
                 }
             }
@@ -1649,9 +1650,8 @@ if ($RunUpdateIDEnabled -eq "True") {
 }
 
 # Running RunApplicationID function
-if ($RunApplicationIDEnabled -eq "True") {
+if ($RunApplicationIDValue) {
     Write-Log -Message "RunApplicationID set to True. Will allow execution of ApplicationID directly from the toast action button"
-    Write-ApplicationIDRegistry
 }
 
 # Running RunPackageID function
@@ -1731,7 +1731,7 @@ if ($PSAppStatus -eq "True") {
     # Make sure the app used with the action center is enabled
     if ((Get-ItemProperty -Path $RegPath\$App -Name "Enabled" -ErrorAction SilentlyContinue).Enabled -ne "1") {
         New-ItemProperty -Path $RegPath\$App -Name "Enabled" -Value 1 -PropertyType "DWORD" -Force
-    }    
+    }
     if ((Get-ItemProperty -Path $RegPath\$App -Name "ShowInActionCenter" -ErrorAction SilentlyContinue).ShowInActionCenter -ne "1") {
         New-ItemProperty -Path $RegPath\$App -Name "ShowInActionCenter" -Value 1 -PropertyType "DWORD" -Force
     }
@@ -1779,12 +1779,12 @@ if (($ActionButton1Enabled -eq "True") -AND ($ActionButton2Enabled -ne "True") -
             </subgroup>
         </group>
         <group>
-            <subgroup>     
+            <subgroup>
                 <text hint-style="body" hint-wrap="true" >$BodyText1</text>
             </subgroup>
         </group>
         <group>
-            <subgroup>     
+            <subgroup>
                 <text hint-style="body" hint-wrap="true" >$BodyText2</text>
             </subgroup>
         </group>
@@ -1815,12 +1815,12 @@ if (($ActionButton1Enabled -ne "True") -AND ($ActionButton2Enabled -ne "True") -
             </subgroup>
         </group>
         <group>
-            <subgroup>     
+            <subgroup>
                 <text hint-style="body" hint-wrap="true" >$BodyText1</text>
             </subgroup>
         </group>
         <group>
-            <subgroup>     
+            <subgroup>
                 <text hint-style="body" hint-wrap="true" >$BodyText2</text>
             </subgroup>
         </group>
@@ -1849,12 +1849,12 @@ if (($ActionButton1Enabled -eq "True") -AND ($ActionButton2Enabled -ne "True") -
             </subgroup>
         </group>
         <group>
-            <subgroup>     
+            <subgroup>
                 <text hint-style="body" hint-wrap="true" >$BodyText1</text>
             </subgroup>
         </group>
         <group>
-            <subgroup>     
+            <subgroup>
                 <text hint-style="body" hint-wrap="true" >$BodyText2</text>
             </subgroup>
         </group>
@@ -1884,12 +1884,12 @@ if (($ActionButton1Enabled -ne "True") -AND ($ActionButton2Enabled -ne "True") -
             </subgroup>
         </group>
         <group>
-            <subgroup>     
+            <subgroup>
                 <text hint-style="body" hint-wrap="true" >$BodyText1</text>
             </subgroup>
         </group>
         <group>
-            <subgroup>     
+            <subgroup>
                 <text hint-style="body" hint-wrap="true" >$BodyText2</text>
             </subgroup>
         </group>
@@ -1920,12 +1920,12 @@ if ($ActionButton2Enabled -eq "True") {
             </subgroup>
         </group>
         <group>
-            <subgroup>     
+            <subgroup>
                 <text hint-style="body" hint-wrap="true" >$BodyText1</text>
             </subgroup>
         </group>
         <group>
-            <subgroup>     
+            <subgroup>
                 <text hint-style="body" hint-wrap="true" >$BodyText2</text>
             </subgroup>
         </group>
@@ -1959,12 +1959,12 @@ if ($SnoozeButtonEnabled -eq "True") {
             </subgroup>
         </group>
         <group>
-            <subgroup>     
+            <subgroup>
                 <text hint-style="body" hint-wrap="true" >$BodyText1</text>
             </subgroup>
         </group>
         <group>
-            <subgroup>     
+            <subgroup>
                 <text hint-style="body" hint-wrap="true" >$BodyText2</text>
             </subgroup>
         </group>
@@ -1988,7 +1988,7 @@ if ($SnoozeButtonEnabled -eq "True") {
 
 # Add an additional group and text to the toast xml used for notifying about possible deadline.
 if (($DeadlineEnabled -eq "True") -OR ($DynDeadlineEnabled -eq "True")) {
-    
+
     if ($DeadlineContent) {
         # Format the date time to match local culture of the running OS. Thanks @osdsune.com
         $LocalCulture = Get-Culture
@@ -2013,7 +2013,7 @@ $DeadlineGroup = @"
 if ($PendingRebootCheckTextEnabled -eq "True") {
 $PendingRebootGroup = @"
         <group>
-            <subgroup>     
+            <subgroup>
                 <text hint-style="body" hint-wrap="true" >$PendingRebootCheckTextValue</text>
             </subgroup>
         </group>
@@ -2025,7 +2025,7 @@ $PendingRebootGroup = @"
 if ($ADPasswordExpirationTextEnabled -eq "True") {
 $ADPasswordExpirationGroup = @"
         <group>
-            <subgroup>     
+            <subgroup>
                 <text hint-style="body" hint-wrap="true" >$ADPasswordExpirationTextValue $ADPasswordExpirationDate</text>
             </subgroup>
         </group>
@@ -2037,7 +2037,7 @@ $ADPasswordExpirationGroup = @"
 if (($PendingRebootUptimeTextEnabled -eq "True") -AND ($Uptime -gt $MaxUptimeDays)) {
 $UptimeGroup = @"
         <group>
-            <subgroup>     
+            <subgroup>
                 <text hint-style="body" hint-wrap="true" >$PendingRebootUptimeTextValue</text>
             </subgroup>
         </group>

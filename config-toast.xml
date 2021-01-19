@@ -12,7 +12,6 @@
 	<Option Name="ADPasswordExpirationText" Enabled="False" />	<!-- Adds an additional group to the toast with text -->
 	<Option Name="ADPasswordExpirationDays" Value="90" />	<!-- How many days in advance shall the toast start reminding the users  -->
 	<Option Name="RunPackageID" Enabled="False" Value="KR100907" /> <!-- Will enable the toast to run any ConfigMgr PackageID through a custom protocol -->
-	<Option Name="RunApplicationID" Enabled="False" Value="ScopeId_A9117680-D054-482B-BC97-532E6CBD0E6B/Application_fd55f35c-4e34-4490-a3ec-ee0b79233ec6" /> <!-- Will enable the toast to run any ConfigMgr ApplicationID through a custom protocol -->
 	<Option Name="RunUpdateID" Enabled="False" Value="4561600" /> <!-- Will enable the toast to run any ConfigMgr Update ID through a custom protocol. Configure the value to the relevant KB-article ID -->
 	<Option Name="RunUpdateTitle" Enabled="False" Value="" /> <!-- Will enable the toast to run any ConfigMgr Update Name through a custom protocol -->
 	<Option Name="Deadline" Enabled="False" Value="30-09-2019 08:00" />	<!-- Adds an additional group to the toast with text about the deadline of the OSUpgrade -->
@@ -22,13 +21,13 @@
 	<Option Name="UsePowershellApp" Enabled="False" />	<!-- The app in Windows doing the actual notification - can't be both SoftwareCenter and Powershell -->
 	<Option Name="CustomAudio" Enabled="False" />	<!-- Enable or disable a custom speak scenario, where the text will be read out aloud -->
 	<Option Name="LogoImageName" Value="ToastLogoImageDefault.jpg" />  <!-- File name of the image shown as logo in the toast notoification  -->
-	<Option Name="HeroImageName" Value="ToastHeroImageSecurity.jpg" /> <!-- File name of the image shown in the top of the toast notification -->	
+	<Option Name="HeroImageName" Value="ToastHeroImageSecurity.jpg" /> <!-- File name of the image shown in the top of the toast notification -->
 	<Option Name="ActionButton1" Enabled="True" />	<!-- Enables or disables the action button. -->
 	<Option Name="ActionButton2" Enabled="True" />	<!-- Enables or disables the action button. -->
 	<Option Name="DismissButton" Enabled="False" />	<!-- Enables or disables the dismiss button. -->
 	<Option Name="SnoozeButton" Enabled="False" /> <!-- Enabling this option will always enable action button and dismiss button -->
 	<Option Name="Scenario" Type="alarm" />	<!-- Possible values are: reminder | short | long -->
-	<Option Name="Action1" Value="ToastReboot:" />	<!-- Action taken when using the Action button. Can be any protocol in Windows -->
+	<Option Name="Action1" Value="ToastRunApplicationID:ScopeId_5197DD71-3116-4878-A26C-EA6155A28E9B/Application_91b60d2e-720e-46b4-8da9-5b56f9ff0177" />	<!-- Action taken when using the Action button. Can be any protocol in Windows -->
 	<Option Name="Action2" Value="https://imab.dk" />	<!-- Action taken when using the Action button. Can be any protocol in Windows -->
 	<Text Option="GreetGivenName" Enabled="True" />	<!-- Displays the toast with a personal greeting using the users given name retrieved from AD. Will try retrieval from WMI of no local AD -->
 	<Text Option="MultiLanguageSupport" Enabled="False" /> <!-- Enable support for multiple languages. If set to True, the toast notification will look for the users language culture within the config file -->

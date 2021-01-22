@@ -719,14 +719,21 @@ function Write-UpdateIDRegistry() {
 
 # Create Display-ToastNotification function
 function Display-ToastNotification() {
-    $Load = [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime]
-    $Load = [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime]
-    # Load the notification into the required format
-    $ToastXml = New-Object -TypeName Windows.Data.Xml.Dom.XmlDocument
-    $ToastXml.LoadXml($Toast.OuterXml)
-    # Display the toast notification
     try {
-        [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($App).Show($ToastXml)
+        if (Test-NTSystem) {
+            # is running under SYSTEM context
+            # show notification to all logged users
+            & (Join-Path -Path $CustomScriptsPath -ChildPath "InvokePSScriptAsUser.ps1") "$PSCommandPath" "$Config"
+        } else {
+            # is running under user context
+            $Load = [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime]
+            $Load = [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime]
+            # Load the notification into the required format
+            $ToastXml = New-Object -TypeName Windows.Data.Xml.Dom.XmlDocument
+            $ToastXml.LoadXml($Toast.OuterXml)
+            # Display the toast notification
+            [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($App).Show($ToastXml)
+        }
         Write-Log -Message "All good. Toast notification was displayed"
         # Using Write-Output for sending status to IME log when used with Endpoint Analytics in Intune
         Write-Output "All good. Toast notification was displayed"
@@ -752,11 +759,9 @@ function Display-ToastNotification() {
 }
 
 # Create Test-NTSystem function
-# If the script is being run as SYSTEM, the toast notification won't display
 function Test-NTSystem() {  
     $currentUser = [Security.Principal.WindowsIdentity]::GetCurrent()
     if ($currentUser.IsSystem -eq $true) {
-        Write-Log -Message "The script is being run as SYSTEM. This is not supported. The script needs the current user's context" -Level Error
         $true  
     }
     elseif ($currentUser.IsSystem -eq $false) {
@@ -853,7 +858,7 @@ function Write-CustomActionScript() {
     [CmdletBinding()]
     param (
         [Parameter(Position="0")]
-        [ValidateSet("ToastRunApplicationID","ToastRunPackageID","ToastRunUpdateID","ToastReboot")]
+        [ValidateSet("ToastRunApplicationID", "ToastRunPackageID", "ToastRunUpdateID", "ToastReboot", "InvokePSScriptAsUser")]
         [string] $Type,
         [Parameter(Position="1")]
         [String] $Path = $global:CustomScriptsPath
@@ -1113,13 +1118,321 @@ exit 0
             # Do not run another type; break
             Break
         }
+        InvokePSScriptAsUser {
+            # create ps1 script that can invoke another script under all logged users (if started as SYSTEM)
+            try {
+                $PS1FileName = 'InvokePSScriptAsUser.ps1'
+                try {
+                    New-Item -Path $Path -Name $PS1FileName -Force -OutVariable PathInfo | Out-Null
+                } catch {
+                    $ErrorMessage = $_.Exception.Message
+                    Write-Log -Level Error -Message "Error message: $ErrorMessage"
+                }
+                try {
+                    $GetCustomScriptPath = $PathInfo.FullName
+                    [String]$Script = @'
+param($File, $argument)
+
+$Source = @"
+using System;
+using System.Runtime.InteropServices;
+
+namespace Runasuser
+{
+    public static class ProcessExtensions
+    {
+        #region Win32 Constants
+
+        private const int CREATE_UNICODE_ENVIRONMENT = 0x00000400;
+        private const int CREATE_NO_WINDOW = 0x08000000;
+
+        private const int CREATE_NEW_CONSOLE = 0x00000010;
+
+        private const uint INVALID_SESSION_ID = 0xFFFFFFFF;
+        private static readonly IntPtr WTS_CURRENT_SERVER_HANDLE = IntPtr.Zero;
+
+        #endregion
+
+        #region DllImports
+
+        [DllImport("advapi32.dll", EntryPoint = "CreateProcessAsUser", SetLastError = true, CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
+        private static extern bool CreateProcessAsUser(
+            IntPtr hToken,
+            String lpApplicationName,
+            String lpCommandLine,
+            IntPtr lpProcessAttributes,
+            IntPtr lpThreadAttributes,
+            bool bInheritHandle,
+            uint dwCreationFlags,
+            IntPtr lpEnvironment,
+            String lpCurrentDirectory,
+            ref STARTUPINFO lpStartupInfo,
+            out PROCESS_INFORMATION lpProcessInformation);
+
+        [DllImport("advapi32.dll", EntryPoint = "DuplicateTokenEx")]
+        private static extern bool DuplicateTokenEx(
+            IntPtr ExistingTokenHandle,
+            uint dwDesiredAccess,
+            IntPtr lpThreadAttributes,
+            int TokenType,
+            int ImpersonationLevel,
+            ref IntPtr DuplicateTokenHandle);
+
+        [DllImport("userenv.dll", SetLastError = true)]
+        private static extern bool CreateEnvironmentBlock(ref IntPtr lpEnvironment, IntPtr hToken, bool bInherit);
+
+        [DllImport("userenv.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool DestroyEnvironmentBlock(IntPtr lpEnvironment);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool CloseHandle(IntPtr hSnapshot);
+
+        [DllImport("kernel32.dll")]
+        private static extern uint WTSGetActiveConsoleSessionId();
+
+        [DllImport("Wtsapi32.dll")]
+        private static extern uint WTSQueryUserToken(uint SessionId, ref IntPtr phToken);
+
+        [DllImport("wtsapi32.dll", SetLastError = true)]
+        private static extern int WTSEnumerateSessions(
+            IntPtr hServer,
+            int Reserved,
+            int Version,
+            ref IntPtr ppSessionInfo,
+            ref int pCount);
+
+        #endregion
+
+        #region Win32 Structs
+
+        private enum SW
+        {
+            SW_HIDE = 0,
+            SW_SHOWNORMAL = 1,
+            SW_NORMAL = 1,
+            SW_SHOWMINIMIZED = 2,
+            SW_SHOWMAXIMIZED = 3,
+            SW_MAXIMIZE = 3,
+            SW_SHOWNOACTIVATE = 4,
+            SW_SHOW = 5,
+            SW_MINIMIZE = 6,
+            SW_SHOWMINNOACTIVE = 7,
+            SW_SHOWNA = 8,
+            SW_RESTORE = 9,
+            SW_SHOWDEFAULT = 10,
+            SW_MAX = 10
+        }
+
+        private enum WTS_CONNECTSTATE_CLASS
+        {
+            WTSActive,
+            WTSConnected,
+            WTSConnectQuery,
+            WTSShadow,
+            WTSDisconnected,
+            WTSIdle,
+            WTSListen,
+            WTSReset,
+            WTSDown,
+            WTSInit
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct PROCESS_INFORMATION
+        {
+            public IntPtr hProcess;
+            public IntPtr hThread;
+            public uint dwProcessId;
+            public uint dwThreadId;
+        }
+
+        private enum SECURITY_IMPERSONATION_LEVEL
+        {
+            SecurityAnonymous = 0,
+            SecurityIdentification = 1,
+            SecurityImpersonation = 2,
+            SecurityDelegation = 3,
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct STARTUPINFO
+        {
+            public int cb;
+            public String lpReserved;
+            public String lpDesktop;
+            public String lpTitle;
+            public uint dwX;
+            public uint dwY;
+            public uint dwXSize;
+            public uint dwYSize;
+            public uint dwXCountChars;
+            public uint dwYCountChars;
+            public uint dwFillAttribute;
+            public uint dwFlags;
+            public short wShowWindow;
+            public short cbReserved2;
+            public IntPtr lpReserved2;
+            public IntPtr hStdInput;
+            public IntPtr hStdOutput;
+            public IntPtr hStdError;
+        }
+
+        private enum TOKEN_TYPE
+        {
+            TokenPrimary = 1,
+            TokenImpersonation = 2
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct WTS_SESSION_INFO
+        {
+            public readonly UInt32 SessionID;
+
+            [MarshalAs(UnmanagedType.LPStr)]
+            public readonly String pWinStationName;
+
+            public readonly WTS_CONNECTSTATE_CLASS State;
+        }
+
+        #endregion
+
+        // Gets the user token from the currently active session
+        private static bool GetSessionUserToken(ref IntPtr phUserToken)
+        {
+            var bResult = false;
+            var hImpersonationToken = IntPtr.Zero;
+            var activeSessionId = INVALID_SESSION_ID;
+            var pSessionInfo = IntPtr.Zero;
+            var sessionCount = 0;
+
+            // Get a handle to the user access token for the current active session.
+            if (WTSEnumerateSessions(WTS_CURRENT_SERVER_HANDLE, 0, 1, ref pSessionInfo, ref sessionCount) != 0)
+            {
+                var arrayElementSize = Marshal.SizeOf(typeof(WTS_SESSION_INFO));
+                var current = pSessionInfo;
+
+                for (var i = 0; i < sessionCount; i++)
+                {
+                    var si = (WTS_SESSION_INFO)Marshal.PtrToStructure((IntPtr)current, typeof(WTS_SESSION_INFO));
+                    current += arrayElementSize;
+
+                    if (si.State == WTS_CONNECTSTATE_CLASS.WTSActive)
+                    {
+                        activeSessionId = si.SessionID;
+                    }
+                }
+            }
+
+            // If enumerating did not work, fall back to the old method
+            if (activeSessionId == INVALID_SESSION_ID)
+            {
+                activeSessionId = WTSGetActiveConsoleSessionId();
+            }
+
+            if (WTSQueryUserToken(activeSessionId, ref hImpersonationToken) != 0)
+            {
+                // Convert the impersonation token to a primary token
+                bResult = DuplicateTokenEx(hImpersonationToken, 0, IntPtr.Zero,
+                    (int)SECURITY_IMPERSONATION_LEVEL.SecurityImpersonation, (int)TOKEN_TYPE.TokenPrimary,
+                    ref phUserToken);
+
+                CloseHandle(hImpersonationToken);
+            }
+
+            return bResult;
+        }
+
+        public static bool StartProcessAsCurrentUser(string appPath, string cmdLine = null, string workDir = null, bool visible = true)
+        {
+            var hUserToken = IntPtr.Zero;
+            var startInfo = new STARTUPINFO();
+            var procInfo = new PROCESS_INFORMATION();
+            var pEnv = IntPtr.Zero;
+            int iResultOfCreateProcessAsUser;
+
+            startInfo.cb = Marshal.SizeOf(typeof(STARTUPINFO));
+
+            try
+            {
+                if (!GetSessionUserToken(ref hUserToken))
+                {
+                    throw new Exception("StartProcessAsCurrentUser: GetSessionUserToken failed.");
+                }
+
+                uint dwCreationFlags = CREATE_UNICODE_ENVIRONMENT | (uint)(visible ? CREATE_NEW_CONSOLE : CREATE_NO_WINDOW);
+                startInfo.wShowWindow = (short)(visible ? SW.SW_SHOW : SW.SW_HIDE);
+                startInfo.lpDesktop = "winsta0\\default";
+
+                if (!CreateEnvironmentBlock(ref pEnv, hUserToken, false))
+                {
+                    throw new Exception("StartProcessAsCurrentUser: CreateEnvironmentBlock failed.");
+                }
+
+                if (!CreateProcessAsUser(hUserToken,
+                    appPath, // Application Name
+                    cmdLine, // Command Line
+                    IntPtr.Zero,
+                    IntPtr.Zero,
+                    false,
+                    dwCreationFlags,
+                    pEnv,
+                    workDir, // Working directory
+                    ref startInfo,
+                    out procInfo))
+                {
+                    iResultOfCreateProcessAsUser = Marshal.GetLastWin32Error();
+                    throw new Exception("StartProcessAsCurrentUser: CreateProcessAsUser failed.  Error Code -" + iResultOfCreateProcessAsUser);
+                }
+
+                iResultOfCreateProcessAsUser = Marshal.GetLastWin32Error();
+            }
+            finally
+            {
+                CloseHandle(hUserToken);
+                if (pEnv != IntPtr.Zero)
+                {
+                    DestroyEnvironmentBlock(pEnv);
+                }
+                CloseHandle(procInfo.hThread);
+                CloseHandle(procInfo.hProcess);
+            }
+
+            return true;
+        }
+
+    }
+}
+"@
+
+# Load the custom type
+Add-Type -ReferencedAssemblies 'System', 'System.Runtime.InteropServices' -TypeDefinition $Source -Language CSharp -ErrorAction Stop
+
+# Run PS as user to display the message box
+[Runasuser.ProcessExtensions]::StartProcessAsCurrentUser("$env:windir\System32\WindowsPowerShell\v1.0\Powershell.exe", " -ExecutionPolicy Bypass -NoProfile -WindowStyle Hidden -File `"$File`" $argument") | Out-Null
+'@
+                    if (-NOT[string]::IsNullOrEmpty($Script)) {
+                        Out-File -FilePath $GetCustomScriptPath -InputObject $Script -Encoding ASCII -Force
+                    }
+                } catch {
+                    Write-Log -Level Error "Failed to create the .ps1 script for $Type. Show notification if run under SYSTEM might not work"
+                    $ErrorMessage = $_.Exception.Message
+                    Write-Log -Level Error -Message "Error message: $ErrorMessage"
+                }
+
+            } catch {
+                Write-Log -Level Error "Failed to create the .ps1 script for $Type.  Show notification if run under SYSTEM might not work"
+                $ErrorMessage = $_.Exception.Message
+                Write-Log -Level Error -Message "Error message: $ErrorMessage"
+            }
+        }
     }
 }
 
 ######### GENERAL VARIABLES #########
 # Global variables
 # Setting global script version
-$global:ScriptVersion = "2.1.0"
+$global:ScriptVersion = "2.1.5"
 # Setting executing directory
 $global:ScriptPath = Split-Path -Parent $MyInvocation.MyCommand.Definition
 # Setting global custom action script location
@@ -1165,12 +1478,6 @@ if (-NOT(Test-Path -Path $global:CustomScriptsPath)) {
 }
 
 # Testing for prerequisites
-# Testing if script is being run as SYSTEM. This is not supported as the toast notification needs the current user's context
-$isSystem = Test-NTSystem
-if ($isSystem -eq $True) {
-    Write-Log -Message "Aborting script" -Level Error
-    Exit 1
-}
 
 # Test if the script is being run on a supported version of Windows. Windows 10 AND workstation OS is required
 $SupportedWindowsVersion = Get-WindowsVersion
@@ -1629,6 +1936,7 @@ if ($CreateScriptsProtocolsEnabled -eq "True") {
                     Write-CustomActionScript -Type ToastRunApplicationID
                     Write-CustomActionScript -Type ToastRunPackageID
                     Write-CustomActionScript -Type ToastRunUpdateID
+                    Write-CustomActionScript -Type InvokePSScriptAsUser
                     New-ItemProperty -Path $global:RegistryPath -Name $RegistryName -Value $global:ScriptVersion -PropertyType "String" -Force | Out-Null
                 }
                 catch { 

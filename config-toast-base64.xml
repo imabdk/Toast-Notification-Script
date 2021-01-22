@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Configuration>
+	<Feature Name="Toast" Enabled="True" />
+	<!-- Enables or disables the entire toast notification -->
+	<Option Name="CreateScriptsAndProtocols" Enabled="True" />
+	<!-- Automatically create the needed custom scripts and protocols. This removes the need to do scripts and protocols outside of the script -->
+	<Option Name="UseSoftwareCenterApp" Enabled="True" />
+	<!-- The app in Windows doing the actual notification - can't be both SoftwareCenter and Powershell -->
+	<Option Name="LogoImageName" Value="ToastLogoImageWindows.jpg" />
+	<!-- File name of the image shown as logo in the toast notoification  -->
+	<Option Name="HeroImageName" Value="ToastHeroImageSecurity.jpg" />
+	<!-- File name of the image shown in the top of the toast notification -->
+	<Option Name="ActionButton1" Enabled="True" />
+	<!-- Enables or disables the action button. -->
+	<Option Name="DismissButton" Enabled="True" />
+	<!-- Enables or disables the dismiss button. -->
+	<Option Name="SnoozeButton" Enabled="True" />
+	<!-- Enabling this option will always enable action button and dismiss button -->
+	<Option Name="Scenario" Type="reminder" />
+	<!-- Possible values are: reminder | short | long -->
+	<Option Name="Action1" Value="ToastRunPSBase64:bQBrAGQAaQByACAAQwA6AFwAdABlAG0AcABcAGIAYQBzAGUANgA0AA==" />
+	<!-- Action taken when using the Action button. Can be any protocol in Windows -->
+	<Text Option="GreetGivenName" Enabled="True" />
+	<!-- Displays the toast with a personal greeting using the users given name retrieved from AD. Will try retrieval from WMI of no local AD -->
+	<Text Option="MultiLanguageSupport" Enabled="False" />
+	<!-- Enable support for multiple languages. If set to True, the toast notification will look for the users language culture within the config file -->
+	<en-US>		<!-- Default fallback language. This language will be used if MultiLanguageSupport is set to False or if no matching language is found -->
+		<Text Name="ActionButton1">Run base64</Text>		<!-- Text on the ActionButton if enabled -->
+		<Text Name="ActionButton2">Learn More</Text>		<!-- Text on the ActionButton if enabled -->
+		<Text Name="DismissButton">Dismiss</Text>		<!-- Text on the DismissButton if enabled -->
+		<Text Name="SnoozeButton">Snooze</Text>		<!-- Text on the SnoozeButton if enabled -->
+		<Text Name="AttributionText">IT Team</Text>
+		<Text Name="HeaderText">Helpdesk kindly reminds you...</Text>
+		<Text Name="TitleText">Nejaky nadpis</Text>
+		<Text Name="BodyText1">kecyyy ;-)</Text>
+		<Text Name="BodyText2">dojde k vytvoreni adresare C:\temp\base64</Text>
+		<Text Name="SnoozeText">Click snooze to be reminded again in:</Text>
+		<Text Name="DeadlineText">Your deadline is:</Text>
+		<Text Name="GreetMorningText">Good morning</Text>
+		<Text Name="GreetAfternoonText">Good afternoon</Text>
+		<Text Name="GreetEveningText">Good evening</Text>
+		<Text Name="MinutesText">Minutes</Text>
+		<Text Name="HourText">Hour</Text>
+		<Text Name="HoursText">Hours</Text>
+		<Text Name="ComputerUptimeText">Computer uptime:</Text>
+		<Text Name="ComputerUptimeDaysText">days</Text>
+	</en-US>
+	<da-DK>
+		<Text Name="PendingRebootUptimeText">Din computer er påkrævet at genstarte, da den har overskredet den maksimale oppetid.</Text>		<!-- Text used if the PendingRebootUptimeText Option is enabled -->
+		<Text Name="PendingRebootCheckText">Årsag: Udestående genstart fundet i registry eller WMI.</Text>		<!-- Text used if the PendingRebootUptimeText Option is enabled -->
+		<Text Name="ADPasswordExpirationText">Dit password vil udløbe: </Text>		<!-- Text used if the ADPasswordExpirationText Option is enabled -->
+		<Text Name="CustomAudioTextToSpeech">Hej dig - vågn op. Din computer skal genstarte. Gør det nu.</Text>		<!-- Text to speech used if the CustomAudioTextToSpeech Option is enabled -->
+		<Text Name="ActionButton1">Genstart nu</Text>		<!-- Text on the ActionButton if enabled -->
+		<Text Name="ActionButton2">Mere Info</Text>		<!-- Text on the ActionButton if enabled -->
+		<Text Name="DismissButton">Afvis</Text>		<!-- Text on the DismissButton if enabled -->
+		<Text Name="SnoozeButton">Udskyd</Text>		<!-- Text on the SnoozeButton if enabled -->
+		<Text Name="AttributionText">www.imab.dk</Text>
+		<Text Name="HeaderText">En venlig påmindelse fra Helpdesk</Text>
+		<Text Name="TitleText">Din computer skal genstarte!</Text>
+		<Text Name="BodyText1">Af hensyn til din computers sikkerhed og stabilitet, beder vi dig genstarte din computer snarest muligt.</Text>
+		<Text Name="BodyText2">At genstarte sin computer regelmæssigt, er med til at sikre et sikkert og stabilt Windows. På forhånd tak.</Text>
+		<Text Name="SnoozeText">Klik udskyd for at blive påmindet igen om:</Text>
+		<Text Name="DeadlineText">Din tidsfrist er:</Text>
+		<Text Name="GreetMorningText">Godmorgen</Text>
+		<Text Name="GreetAfternoonText">God eftermiddag</Text>
+		<Text Name="GreetEveningText">Godaften</Text>
+		<Text Name="MinutesText">Minutter</Text>
+		<Text Name="HourText">Time</Text>
+		<Text Name="HoursText">Timer</Text>
+		<Text Name="ComputerUptimeText">Computer oppetid:</Text>
+		<Text Name="ComputerUptimeDaysText">dage</Text>
+	</da-DK>
+	<sv-SE>
+		<Text Name="PendingRebootUptimeText">Din dator behöver startas om då den överskridit den maximala tillåtna upptiden.</Text>		<!-- Text used if the PendingRebootUptimeText Option is enabled -->
+		<Text Name="PendingRebootCheckText">Orsak: Väntande omstart hittades i registret eller WMI.</Text>		<!-- Text used if the PendingRebootUptimeText Option is enabled -->
+		<Text Name="ADPasswordExpirationText">Ditt lösenord går ut: </Text>		<!-- Text used if the ADPasswordExpirationText Option is enabled -->
+		<Text Name="CustomAudioTextToSpeech">Hej du - vakna upp. Datorn måste starta om. Gör det nu.</Text>		<!-- Text to speech used if the CustomAudioTextToSpeech Option is enabled -->
+		<Text Name="ActionButton1">Starta Om</Text>		<!-- Text on the ActionButton if enabled -->
+		<Text Name="ActionButton2">Starta Om</Text>		<!-- Text on the ActionButton if enabled -->
+		<Text Name="DismissButton">Stäng</Text>		<!-- Text on the DismissButton if enabled -->
+		<Text Name="SnoozeButton">Påminn</Text>		<!-- Text on the SnoozeButton if enabled -->
+		<Text Name="AttributionText">www.imab.dk</Text>
+		<Text Name="HeaderText">En vänlig påminnelse från IT...</Text>
+		<Text Name="TitleText">Din dator behövs starta om</Text>
+		<Text Name="BodyText1">För att kunna garantera datorns säkerhet och stabilitet ber vi dig att starta om datorn så snart som möjligt.</Text>
+		<Text Name="BodyText2">Att starta om sin dator regelbundet bidrar till en stabilare och säkrare It-miljö. Tack på förhand!</Text>
+		<Text Name="SnoozeText">Klicka på Påminn för att bli påmind igen:</Text>
+		<Text Name="DeadlineText">Slutdatum är:</Text>
+		<Text Name="GreetMorningText">God morgon</Text>
+		<Text Name="GreetAfternoonText">God eftermiddag</Text>
+		<Text Name="GreetEveningText">God kväll</Text>
+		<Text Name="MinutesText">Minuter</Text>
+		<Text Name="HourText">Timma</Text>
+		<Text Name="HoursText">Timmar</Text>
+		<Text Name="ComputerUptimeText">Datorns upptid:</Text>
+		<Text Name="ComputerUptimeDaysText">dagar</Text>
+	</sv-SE>
+</Configuration>

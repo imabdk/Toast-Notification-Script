@@ -788,7 +788,13 @@ function Write-CustomActionRegistry() {
                 New-Item "HKCU:\Software\Classes\$($ActionType)\shell\open\command" -Force -ErrorAction SilentlyContinue | Out-Null
                 New-ItemProperty -LiteralPath "HKCU:\Software\Classes\$($ActionType)" -Name 'URL Protocol' -Value '' -PropertyType String -Force -ErrorAction SilentlyContinue | Out-Null
                 New-ItemProperty -LiteralPath "HKCU:\Software\Classes\$($ActionType)" -Name '(default)' -Value "URL:$($ActionType) Protocol" -PropertyType String -Force -ErrorAction SilentlyContinue | Out-Null
-                $RegCommandValue = $RegCommandPath  + '\' + "$($ActionType).cmd"
+                # to be able to run vbs from Toast Notification (https://www.windows10forums.com/threads/custom-protocol-handler-does-not-work-in-ms-edge-in-win10.14698/)
+                # 0x210000 is join of these values:
+                #   FTA_OpenIsSafe - 0x00010000
+                #   FTA_SafeForElevation - 0x00200000
+                #   https://msdn.microsoft.com/en-us/library/windows/desktop/bb762506(v=vs.85).aspx
+                New-ItemProperty -LiteralPath "HKCU:\Software\Classes\$($ActionType)" -Name 'EditFlags' -Value '0x210000' -PropertyType Dword -Force -ErrorAction SilentlyContinue | Out-Null
+                $RegCommandValue = "wscript.exe $RegCommandPath\ToastRunScriptWithoutGUI.vbs" + " " + $RegCommandPath + '\' + "$($ActionType).cmd"
                 New-ItemProperty -LiteralPath "HKCU:\Software\Classes\$($ActionType)\shell\open\command" -Name '(default)' -Value $RegCommandValue -PropertyType String -Force -ErrorAction SilentlyContinue | Out-Null
             }
             catch {
@@ -803,7 +809,13 @@ function Write-CustomActionRegistry() {
                 New-Item "HKCU:\Software\Classes\$($ActionType)\shell\open\command" -Force -ErrorAction SilentlyContinue | Out-Null
                 New-ItemProperty -LiteralPath "HKCU:\Software\Classes\$($ActionType)" -Name 'URL Protocol' -Value '' -PropertyType String -Force -ErrorAction SilentlyContinue | Out-Null
                 New-ItemProperty -LiteralPath "HKCU:\Software\Classes\$($ActionType)" -Name '(default)' -Value "URL:$($ActionType) Protocol" -PropertyType String -Force -ErrorAction SilentlyContinue | Out-Null
-                $RegCommandValue = $RegCommandPath  + '\' + "$($ActionType).cmd"
+                # to be able to run vbs from Toast Notification (https://www.windows10forums.com/threads/custom-protocol-handler-does-not-work-in-ms-edge-in-win10.14698/)
+                # 0x210000 is join of these values:
+                #   FTA_OpenIsSafe - 0x00010000
+                #   FTA_SafeForElevation - 0x00200000
+                #   https://msdn.microsoft.com/en-us/library/windows/desktop/bb762506(v=vs.85).aspx
+                New-ItemProperty -LiteralPath "HKCU:\Software\Classes\$($ActionType)" -Name 'EditFlags' -Value '0x210000' -PropertyType Dword -Force -ErrorAction SilentlyContinue | Out-Null
+                $RegCommandValue = "wscript.exe $RegCommandPath\ToastRunScriptWithoutGUI.vbs" + " " + $RegCommandPath + '\' + "$($ActionType).ps1"
                 New-ItemProperty -LiteralPath "HKCU:\Software\Classes\$($ActionType)\shell\open\command" -Name '(default)' -Value $RegCommandValue -PropertyType String -Force -ErrorAction SilentlyContinue | Out-Null
             }
             catch {
@@ -818,7 +830,13 @@ function Write-CustomActionRegistry() {
                 New-Item "HKCU:\Software\Classes\$($ActionType)\shell\open\command" -Force -ErrorAction SilentlyContinue | Out-Null
                 New-ItemProperty -LiteralPath "HKCU:\Software\Classes\$($ActionType)" -Name 'URL Protocol' -Value '' -PropertyType String -Force -ErrorAction SilentlyContinue | Out-Null
                 New-ItemProperty -LiteralPath "HKCU:\Software\Classes\$($ActionType)" -Name '(default)' -Value "URL:$($ActionType) Protocol" -PropertyType String -Force -ErrorAction SilentlyContinue | Out-Null
-                $RegCommandValue = $RegCommandPath  + '\' + "$($ActionType).cmd"
+                # to be able to run vbs from Toast Notification (https://www.windows10forums.com/threads/custom-protocol-handler-does-not-work-in-ms-edge-in-win10.14698/)
+                # 0x210000 is join of these values:
+                #   FTA_OpenIsSafe - 0x00010000
+                #   FTA_SafeForElevation - 0x00200000
+                #   https://msdn.microsoft.com/en-us/library/windows/desktop/bb762506(v=vs.85).aspx
+                New-ItemProperty -LiteralPath "HKCU:\Software\Classes\$($ActionType)" -Name 'EditFlags' -Value '0x210000' -PropertyType Dword -Force -ErrorAction SilentlyContinue | Out-Null
+                $RegCommandValue = "wscript.exe $RegCommandPath\ToastRunScriptWithoutGUI.vbs" + " " + $RegCommandPath + '\' + "$($ActionType).ps1"
                 New-ItemProperty -LiteralPath "HKCU:\Software\Classes\$($ActionType)\shell\open\command" -Name '(default)' -Value $RegCommandValue -PropertyType String -Force -ErrorAction SilentlyContinue | Out-Null
             }
             catch {
@@ -833,10 +851,37 @@ function Write-CustomActionRegistry() {
                 New-Item "HKCU:\Software\Classes\$($ActionType)\shell\open\command" -Force -ErrorAction SilentlyContinue | Out-Null
                 New-ItemProperty -LiteralPath "HKCU:\Software\Classes\$($ActionType)" -Name 'URL Protocol' -Value '' -PropertyType String -Force -ErrorAction SilentlyContinue | Out-Null
                 New-ItemProperty -LiteralPath "HKCU:\Software\Classes\$($ActionType)" -Name '(default)' -Value "URL:$($ActionType) Protocol" -PropertyType String -Force -ErrorAction SilentlyContinue | Out-Null
-                $RegCommandValue = $RegCommandPath  + '\' + "$($ActionType).cmd"
+                # to be able to run vbs from Toast Notification (https://www.windows10forums.com/threads/custom-protocol-handler-does-not-work-in-ms-edge-in-win10.14698/)
+                # 0x210000 is join of these values:
+                #   FTA_OpenIsSafe - 0x00010000
+                #   FTA_SafeForElevation - 0x00200000
+                #   https://msdn.microsoft.com/en-us/library/windows/desktop/bb762506(v=vs.85).aspx
+                New-ItemProperty -LiteralPath "HKCU:\Software\Classes\$($ActionType)" -Name 'EditFlags' -Value '0x210000' -PropertyType Dword -Force -ErrorAction SilentlyContinue | Out-Null
+                $RegCommandValue = "wscript.exe $RegCommandPath\ToastRunScriptWithoutGUI.vbs" + " " + $RegCommandPath + '\' + "$($ActionType).ps1"
                 New-ItemProperty -LiteralPath "HKCU:\Software\Classes\$($ActionType)\shell\open\command" -Name '(default)' -Value $RegCommandValue -PropertyType String -Force -ErrorAction SilentlyContinue | Out-Null
             }
             catch {
+                Write-Log -Level Error "Failed to create the $ActionType custom protocol in HKCU\Software\Classes. Action button might not work"
+                $ErrorMessage = $_.Exception.Message
+                Write-Log -Level Error -Message "Error message: $ErrorMessage"
+            }
+        }
+        #FIXME ToastRunPSBase64 I added in different branch, so just for you to know how to set its RegCommandValue
+        ToastRunPSBase64 {
+            # Build out registry for custom action for running PowerShell command encoded as Base64 via the action button
+            try {
+                New-Item "HKCU:\Software\Classes\$($ActionType)\shell\open\command" -Force -ErrorAction SilentlyContinue | Out-Null
+                New-ItemProperty -LiteralPath "HKCU:\Software\Classes\$($ActionType)" -Name 'URL Protocol' -Value '' -PropertyType String -Force -ErrorAction SilentlyContinue | Out-Null
+                New-ItemProperty -LiteralPath "HKCU:\Software\Classes\$($ActionType)" -Name '(default)' -Value "URL:$($ActionType) Protocol" -PropertyType String -Force -ErrorAction SilentlyContinue | Out-Null
+                # to be able to run vbs from Toast Notification (https://www.windows10forums.com/threads/custom-protocol-handler-does-not-work-in-ms-edge-in-win10.14698/)
+                # 0x210000 is join of these values:
+                #   FTA_OpenIsSafe - 0x00010000
+                #   FTA_SafeForElevation - 0x00200000
+                #   https://msdn.microsoft.com/en-us/library/windows/desktop/bb762506(v=vs.85).aspx
+                New-ItemProperty -LiteralPath "HKCU:\Software\Classes\$($ActionType)" -Name 'EditFlags' -Value '0x210000' -PropertyType Dword -Force -ErrorAction SilentlyContinue | Out-Null
+                $RegCommandValue = "wscript.exe $RegCommandPath\ToastRunScriptWithoutGUI.vbs" + " " + $RegCommandPath + '\' + "$($ActionType).cmd `"%1`"" # %1 in quotes because it contains equal sign, which will be otherwise removed
+                New-ItemProperty -LiteralPath "HKCU:\Software\Classes\$($ActionType)\shell\open\command" -Name '(default)' -Value $RegCommandValue -PropertyType String -Force -ErrorAction SilentlyContinue | Out-Null
+            } catch {
                 Write-Log -Level Error "Failed to create the $ActionType custom protocol in HKCU\Software\Classes. Action button might not work"
                 $ErrorMessage = $_.Exception.Message
                 Write-Log -Level Error -Message "Error message: $ErrorMessage"
@@ -853,7 +898,7 @@ function Write-CustomActionScript() {
     [CmdletBinding()]
     param (
         [Parameter(Position="0")]
-        [ValidateSet("ToastRunApplicationID","ToastRunPackageID","ToastRunUpdateID","ToastReboot")]
+        [ValidateSet("ToastRunApplicationID", "ToastRunPackageID", "ToastRunUpdateID", "ToastReboot", "ToastRunScriptWithoutGUI")]
         [string] $Type,
         [Parameter(Position="1")]
         [String] $Path = $global:CustomScriptsPath
@@ -862,34 +907,6 @@ function Write-CustomActionScript() {
     switch ($Type) {
         # Create custom scripts for running software updates via the action button
         ToastRunUpdateID {
-            try {
-                $CMDFileName = $Type + '.cmd'
-                $CMDFilePath = $Path + '\' + $CMDFileName
-                try {
-                    New-item -Path $Path -Name $CMDFileName -Force -OutVariable PathInfo | Out-Null
-                }
-                catch { 
-                    $ErrorMessage = $_.Exception.Message
-                    Write-Log -Level Error -Message "Error message: $ErrorMessage"
-                }
-                try {
-                    $GetCustomScriptPath = $PathInfo.FullName
-                    [String]$Script = "powershell.exe -ExecutionPolicy Bypass -NoLogo -NonInteractive -NoProfile -WindowStyle Hidden -File `"$global:CustomScriptsPath\ToastRunUpdateID.ps1`""
-                    if (-NOT[string]::IsNullOrEmpty($Script)) {
-                        Out-File -FilePath $GetCustomScriptPath -InputObject $Script -Encoding ASCII -Force
-                    }
-                }
-                catch {
-                    Write-Log -Level Error "Failed to create the custom .cmd script for $Type. Action button might not work"
-                    $ErrorMessage = $_.Exception.Message
-                    Write-Log -Level Error -Message "Error message: $ErrorMessage"
-                }
-            }
-            catch {
-                Write-Log -Level Error "Failed to create the custom .cmd script for $Type. Action button might not work"
-                $ErrorMessage = $_.Exception.Message
-                Write-Log -Level Error -Message "Error message: $ErrorMessage"
-            }
             try {
                 $PS1FileName = $Type + '.ps1'
                 $PS1FilePath = $Path + '\' + $PS1FileName
@@ -968,34 +985,6 @@ exit 0
         # Create custom scripts to run packages and task sequences directly from the action button
         ToastRunPackageID {
             try {
-                $CMDFileName = $Type + '.cmd'
-                $CMDFilePath = $Path + '\' + $CMDFileName
-                try {
-                    New-item -Path $Path -Name $CMDFileName -Force -OutVariable PathInfo | Out-Null
-                }
-                catch { 
-                    $ErrorMessage = $_.Exception.Message
-                    Write-Log -Level Error -Message "Error message: $ErrorMessage"
-                }
-                try {
-                    $GetCustomScriptPath = $PathInfo.FullName
-                    [String]$Script = "powershell.exe -ExecutionPolicy Bypass -NoLogo -NonInteractive -NoProfile -WindowStyle Hidden -File `"$global:CustomScriptsPath\ToastRunPackageID.ps1`""
-                    if (-NOT[string]::IsNullOrEmpty($Script)) {
-                        Out-File -FilePath $GetCustomScriptPath -InputObject $Script -Encoding ASCII -Force
-                    }
-                }
-                catch {
-                    Write-Log -Level Error "Failed to create the custom .cmd script for $Type. Action button might not work"
-                    $ErrorMessage = $_.Exception.Message
-                    Write-Log -Level Error -Message "Error message: $ErrorMessage"
-                }
-            }
-            catch {
-                Write-Log -Level Error "Failed to create the custom .cmd script for $Type. Action button might not work"
-                $ErrorMessage = $_.Exception.Message
-                Write-Log -Level Error -Message "Error message: $ErrorMessage"
-            }
-            try {
                 $PS1FileName = $Type + '.ps1'
                 $PS1FilePath = $Path + '\' + $PS1FileName
                 try {
@@ -1038,35 +1027,6 @@ exit 0
         }
         # Create custom scripts to run applications directly from the action button
         ToastRunApplicationID {
-            try {
-                $CMDFileName = $Type + '.cmd'
-                $CMDFilePath = $Path + '\' + $CMDFileName    
-                try {
-                    New-item -Path $Path -Name $CMDFileName -Force -OutVariable PathInfo | Out-Null
-                }
-                catch { 
-                    $ErrorMessage = $_.Exception.Message
-                    Write-Log -Level Error -Message "Error message: $ErrorMessage"
-                }
-                try {
-                    $GetCustomScriptPath = $PathInfo.FullName
-                    [String]$Script = "powershell.exe -ExecutionPolicy Bypass -NoLogo -NonInteractive -NoProfile -WindowStyle Hidden -File `"$global:CustomScriptsPath\ToastRunApplicationID.ps1`""
-                    if (-NOT[string]::IsNullOrEmpty($Script)) {
-                        Out-File -FilePath $GetCustomScriptPath -InputObject $Script -Encoding ASCII -Force
-                    }
-                }
-                catch {
-                    Write-Log -Level Error "Failed to create the custom .cmd script for $Type. Action button might not work"
-                    $ErrorMessage = $_.Exception.Message
-                    Write-Log -Level Error -Message "Error message: $ErrorMessage"
-                }
-
-            }
-            catch {
-                Write-Log -Level Error "Failed to create the custom .cmd script for $Type. Action button might not work"
-                $ErrorMessage = $_.Exception.Message
-                Write-Log -Level Error -Message "Error message: $ErrorMessage"
-            }
             try {
                 $PS1FileName = $Type + '.ps1'
                 $PS1FilePath = $Path + '\' + $PS1FileName
@@ -1113,13 +1073,109 @@ exit 0
             # Do not run another type; break
             Break
         }
+        # Create custom scripts to run PowerShell command encoded as Base64 directly from the action button
+        ToastRunPSBase64 {
+            try {
+                $CMDFileName = $Type + '.cmd'
+                $CMDFilePath = $Path + '\' + $CMDFileName
+                try {
+                    New-Item -Path $Path -Name $CMDFileName -Force -OutVariable PathInfo | Out-Null
+                } catch {
+                    $ErrorMessage = $_.Exception.Message
+                    Write-Log -Level Error -Message "Error message: $ErrorMessage"
+                }
+                try {
+                    $GetCustomScriptPath = $PathInfo.FullName
+                    [String]$Script = "
+set passedArg=%~1
+:: remove part before : from passed string
+set base64=%passedArg:*:=%
+powershell.exe -ExecutionPolicy Bypass -NoLogo -NonInteractive -NoProfile -WindowStyle Hidden -EncodedCommand %base64%"
+                    if (-NOT[string]::IsNullOrEmpty($Script)) {
+                        Out-File -FilePath $GetCustomScriptPath -InputObject $Script -Encoding ASCII -Force
+                    }
+                } catch {
+                    Write-Log -Level Error "Failed to create the custom .cmd script for $Type. Action button might not work"
+                    $ErrorMessage = $_.Exception.Message
+                    Write-Log -Level Error -Message "Error message: $ErrorMessage"
+                }
+
+            } catch {
+                Write-Log -Level Error "Failed to create the custom .cmd script for $Type. Action button might not work"
+                $ErrorMessage = $_.Exception.Message
+                Write-Log -Level Error -Message "Error message: $ErrorMessage"
+            }
+            # Do not run another type; break
+            Break
+        }
+        ToastRunScriptWithoutGUI {
+            try {
+                $VBSFileName = 'ToastRunScriptWithoutGUI.vbs'
+                try {
+                    New-Item -Path $Path -Name $VBSFileName -Force -OutVariable PathInfo | Out-Null
+                } catch {
+                    $ErrorMessage = $_.Exception.Message
+                    Write-Log -Level Error -Message "Error message: $ErrorMessage"
+                }
+                try {
+                    $GetCustomScriptPath = $PathInfo.FullName
+                    [String]$Script = @'
+Set WshShell = WScript.CreateObject("WScript.Shell")
+
+' regex to distinguish ps1 scripts
+Set re = New RegExp
+With re
+.Pattern    = "\.ps1$"
+.IgnoreCase = True
+.Global     = False
+End With
+
+If Wscript.Arguments.Count < 1 Or Wscript.Arguments.Count > 2 Then
+    wscript.echo "ERROR, you have to enter one or two argument(s)! First has to be the path to cmd file to run and voluntarily second one as CMDs file argument"
+ElseIf Wscript.Arguments.Count = 1 Then
+    If re.Test( WScript.Arguments(0) ) Then
+        ' it is ps1 script
+        WshShell.Run "cmd /c powershell.exe -ExecutionPolicy Bypass -NoLogo -NonInteractive -NoProfile -WindowStyle Hidden -File" & " " & """" & WScript.Arguments(0) & """", 0, True
+    Else
+        ' it isn't ps1 script
+        WshShell.Run """" & WScript.Arguments(0) & """", 0, True
+    End If
+ElseIf Wscript.Arguments.Count = 2 Then
+    'wscript.echo WScript.Arguments(0)
+    'wscript.echo WScript.Arguments(1)
+    If re.Test( WScript.Arguments(0) ) Then
+        ' it is ps1 script
+        WshShell.Run "cmd /c powershell.exe -ExecutionPolicy Bypass -NoLogo -NonInteractive -NoProfile -WindowStyle Hidden -File" & " " & """" & WScript.Arguments(0) & """" & " " & """" & WScript.Arguments(1) & """", 0, True
+    Else
+        ' it isn't ps1 script
+        WshShell.Run """" & WScript.Arguments(0) & """" & """" & WScript.Arguments(1) & """", 0, True
+    End If
+End If
+
+Set WshShell = Nothing
+'@
+                    if (-NOT[string]::IsNullOrEmpty($Script)) {
+                        Out-File -FilePath $GetCustomScriptPath -InputObject $Script -Encoding ASCII -Force
+                    }
+                } catch {
+                    Write-Log -Level Error "Failed to create the custom .cmd script for $Type. Action button might not work"
+                    $ErrorMessage = $_.Exception.Message
+                    Write-Log -Level Error -Message "Error message: $ErrorMessage"
+                }
+
+            } catch {
+                Write-Log -Level Error "Failed to create the custom .cmd script for $Type. Action button might not work"
+                $ErrorMessage = $_.Exception.Message
+                Write-Log -Level Error -Message "Error message: $ErrorMessage"
+            }
+        }
     }
 }
 
 ######### GENERAL VARIABLES #########
 # Global variables
 # Setting global script version
-$global:ScriptVersion = "2.1.0"
+$global:ScriptVersion = "2.1.2"
 # Setting executing directory
 $global:ScriptPath = Split-Path -Parent $MyInvocation.MyCommand.Definition
 # Setting global custom action script location
@@ -1629,6 +1685,7 @@ if ($CreateScriptsProtocolsEnabled -eq "True") {
                     Write-CustomActionScript -Type ToastRunApplicationID
                     Write-CustomActionScript -Type ToastRunPackageID
                     Write-CustomActionScript -Type ToastRunUpdateID
+                    Write-CustomActionScript -Type ToastRunScriptWithoutGUI
                     New-ItemProperty -Path $global:RegistryPath -Name $RegistryName -Value $global:ScriptVersion -PropertyType "String" -Force | Out-Null
                 }
                 catch { 

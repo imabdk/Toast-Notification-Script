@@ -879,7 +879,7 @@ function Write-CustomActionRegistry() {
                 #   FTA_SafeForElevation - 0x00200000
                 #   https://msdn.microsoft.com/en-us/library/windows/desktop/bb762506(v=vs.85).aspx
                 New-ItemProperty -LiteralPath "HKCU:\Software\Classes\$($ActionType)" -Name 'EditFlags' -Value '0x210000' -PropertyType Dword -Force -ErrorAction SilentlyContinue | Out-Null
-                $RegCommandValue = "wscript.exe $RegCommandPath\ToastRunScriptWithoutGUI.vbs" + " " + $RegCommandPath + '\' + "$($ActionType).cmd `"%1`"" # %1 in quotes because it contains equal sign, which will be otherwise removed
+                $RegCommandValue = "wscript.exe $RegCommandPath\ToastRunScriptWithoutGUI.vbs" + " " + "`"%1`"" # %1 in quotes because it contains equal sign, which will be otherwise removed
                 New-ItemProperty -LiteralPath "HKCU:\Software\Classes\$($ActionType)\shell\open\command" -Name '(default)' -Value $RegCommandValue -PropertyType String -Force -ErrorAction SilentlyContinue | Out-Null
             } catch {
                 Write-Log -Level Error "Failed to create the $ActionType custom protocol in HKCU\Software\Classes. Action button might not work"
@@ -1073,41 +1073,6 @@ exit 0
             # Do not run another type; break
             Break
         }
-        # Create custom scripts to run PowerShell command encoded as Base64 directly from the action button
-        ToastRunPSBase64 {
-            try {
-                $CMDFileName = $Type + '.cmd'
-                $CMDFilePath = $Path + '\' + $CMDFileName
-                try {
-                    New-Item -Path $Path -Name $CMDFileName -Force -OutVariable PathInfo | Out-Null
-                } catch {
-                    $ErrorMessage = $_.Exception.Message
-                    Write-Log -Level Error -Message "Error message: $ErrorMessage"
-                }
-                try {
-                    $GetCustomScriptPath = $PathInfo.FullName
-                    [String]$Script = "
-set passedArg=%~1
-:: remove part before : from passed string
-set base64=%passedArg:*:=%
-powershell.exe -ExecutionPolicy Bypass -NoLogo -NonInteractive -NoProfile -WindowStyle Hidden -EncodedCommand %base64%"
-                    if (-NOT[string]::IsNullOrEmpty($Script)) {
-                        Out-File -FilePath $GetCustomScriptPath -InputObject $Script -Encoding ASCII -Force
-                    }
-                } catch {
-                    Write-Log -Level Error "Failed to create the custom .cmd script for $Type. Action button might not work"
-                    $ErrorMessage = $_.Exception.Message
-                    Write-Log -Level Error -Message "Error message: $ErrorMessage"
-                }
-
-            } catch {
-                Write-Log -Level Error "Failed to create the custom .cmd script for $Type. Action button might not work"
-                $ErrorMessage = $_.Exception.Message
-                Write-Log -Level Error -Message "Error message: $ErrorMessage"
-            }
-            # Do not run another type; break
-            Break
-        }
         ToastRunScriptWithoutGUI {
             try {
                 $VBSFileName = 'ToastRunScriptWithoutGUI.vbs'
@@ -1123,9 +1088,16 @@ powershell.exe -ExecutionPolicy Bypass -NoLogo -NonInteractive -NoProfile -Windo
 Set WshShell = WScript.CreateObject("WScript.Shell")
 
 ' regex to distinguish ps1 scripts
-Set re = New RegExp
-With re
+Set runPs1 = New RegExp
+With runPs1
 .Pattern    = "\.ps1$"
+.IgnoreCase = True
+.Global     = False
+End With
+' regex to distinguish base64
+Set runBase64 = New RegExp
+With runBase64
+.Pattern    = "^toastrunpsbase64:"
 .IgnoreCase = True
 .Global     = False
 End With
@@ -1133,17 +1105,23 @@ End With
 If Wscript.Arguments.Count < 1 Or Wscript.Arguments.Count > 2 Then
     wscript.echo "ERROR, you have to enter one or two argument(s)! First has to be the path to cmd file to run and voluntarily second one as CMDs file argument"
 ElseIf Wscript.Arguments.Count = 1 Then
-    If re.Test( WScript.Arguments(0) ) Then
+    If runPs1.Test( WScript.Arguments(0) ) Then
         ' it is ps1 script
         WshShell.Run "cmd /c powershell.exe -ExecutionPolicy Bypass -NoLogo -NonInteractive -NoProfile -WindowStyle Hidden -File" & " " & """" & WScript.Arguments(0) & """", 0, True
+    ElseIf runBase64.Test( WScript.Arguments(0) ) Then
+        ' it is base64 string
+        'remove part before : from passed string to get just base64
+        base64 = WScript.Arguments(0)
+        base64 = Mid(base64,instr(base64,":")+1)
+        WshShell.Run "cmd /c powershell.exe -ExecutionPolicy Bypass -NoLogo -NonInteractive -NoProfile -WindowStyle Hidden -EncodedCommand" & " " & """" & base64 & """", 0, True
     Else
-        ' it isn't ps1 script
+        ' it is something else
         WshShell.Run """" & WScript.Arguments(0) & """", 0, True
     End If
 ElseIf Wscript.Arguments.Count = 2 Then
     'wscript.echo WScript.Arguments(0)
     'wscript.echo WScript.Arguments(1)
-    If re.Test( WScript.Arguments(0) ) Then
+    If runPs1.Test( WScript.Arguments(0) ) Then
         ' it is ps1 script
         WshShell.Run "cmd /c powershell.exe -ExecutionPolicy Bypass -NoLogo -NonInteractive -NoProfile -WindowStyle Hidden -File" & " " & """" & WScript.Arguments(0) & """" & " " & """" & WScript.Arguments(1) & """", 0, True
     Else
@@ -1175,7 +1153,7 @@ Set WshShell = Nothing
 ######### GENERAL VARIABLES #########
 # Global variables
 # Setting global script version
-$global:ScriptVersion = "2.1.2"
+$global:ScriptVersion = "2.1.6"
 # Setting executing directory
 $global:ScriptPath = Split-Path -Parent $MyInvocation.MyCommand.Definition
 # Setting global custom action script location

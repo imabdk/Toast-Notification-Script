@@ -14,7 +14,7 @@
 
 .NOTES
     Filename: New-ToastNotification.ps1
-    Version: 2.1.0
+    Version: 2.2.0
     Author: Martin Bengtsson
     Blog: www.imab.dk
     Twitter: @mwbengtsson
@@ -124,8 +124,14 @@
               Added Enable-WindowsPushNotifications function // Thank you @ Trevor Jones: https://smsagent.blog/2020/11/12/prevent-users-from-disabling-toast-notifications-can-it-be-done/
                 - This will force enable Windows toast notification for the logged on user, if generally disabled
                     - A Windows service will be restarted in the process in the context of the user
-              
 
+    2.2.0 -   Added built-in prevention of having multiple toast notifications to be displayed in a row
+                - This is something that can happen, if a device misses a schedule in configmgr. 
+                    - The nature of configmgr is to catch up on the missed schedule, and this can lead to multiple toast notifications being displayed
+              Added the ability to run the script coming from SYSTEM context
+                - This has proven to only work with packages/programs/task sequences and when testing with psexec. 
+                - Running the script in SYSTEM, with the script feature in configmgr and proactive remediations in Intune, still yields unexpected results
+       
 .LINK
     https://www.imab.dk/windows-10-toast-notification-script/
 #> 
@@ -136,8 +142,7 @@ param(
     [string]$Config
 )
 
-######### FUNCTIONS #########
-
+#region Functions
 # Create Write-Log function
 function Write-Log() {
     [CmdletBinding()]
@@ -262,32 +267,9 @@ function Get-GivenName() {
         Write-Log -Message "Given name retrieved from Active Directory: $GivenName"
         $GivenName
     }
+    # This is the last resort of trying to find a given name. This part will be used if device is not joined to a local AD, and is not having the configmgr client installed
     elseif ([string]::IsNullOrEmpty($GivenName)) {
         Write-Log -Message "Given name not found in AD or no local AD is available. Continuing looking for given name elsewhere"
-        if (Get-Service -Name ccmexec -ErrorAction SilentlyContinue) {
-            Write-Log -Message "Looking for logged on user's SID in WMI with CCM client"
-            $LoggedOnSID = Get-CimInstance -Namespace ROOT\CCM -Class CCM_UserLogonEvents -Filter "LogoffTime=null" | Select -ExpandProperty UserSID
-            if ($LoggedOnSID.GetType().IsArray) {
-                Write-Log -Message "Multiple SID's found logged on. Skipping"
-                $GivenName = $null
-            }
-            else {
-	            $RegKey = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Authentication\LogonUI\SessionData"
-	            $DisplayName = (Get-ChildItem -Path $RegKey | Where-Object {$_.GetValue("LoggedOnUserSID") -eq $LoggedOnSID} | Select-Object -First 1).GetValue("LoggedOnDisplayName")
-		        if ($DisplayName) {
-                    $GivenName = $DisplayName.Split()[0].Trim()
-                    Write-Log -Message "Given name found matching logged on user SID: $GivenName"
-			        $GivenName
-		        }
-		        else {
-			        $GivenName = $null
-		        }
-            }
-        }
-    }
-    # This is the last resort of trying to find a given name. This part will be used if device is not joined to a local AD, and is not having the configmgr client installed
-    if ([string]::IsNullOrEmpty($GivenName)) {
-        Write-Log -Message "Given name still not found. Continuing looking for given name directly in registry"
         $RegKey = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Authentication\LogonUI"
         if ((Get-ItemProperty $RegKey).LastLoggedOnDisplayName) {
             $LoggedOnUserDisplayName = Get-Itemproperty -Path $RegKey -Name "LastLoggedOnDisplayName" | Select-Object -ExpandProperty LastLoggedOnDisplayName
@@ -297,15 +279,15 @@ function Get-GivenName() {
                 Write-Log -Message "Given name found directly in registry: $GivenName"
                 $GivenName
             }
+            else {
+                Write-Log -Message "Given name not found in registry. Using nothing as placeholder"
+                $GivenName = $null
+            }
         }
         else {
+            Write-Log -Message "Given name not found in registry. Using nothing as placeholder"
             $GivenName = $null
         }
-    }
-    if ([string]::IsNullOrEmpty($GivenName)) {
-        Write-Log -Message "No given name found. Using nothing as placeholder"
-        $GivenName = $null
-        $GivenName
     }
 }
 
@@ -517,7 +499,7 @@ function Get-CMUpdate() {
     if (Get-Service -Name ccmexec -ErrorAction SilentlyContinue) {
         try {
             # Get update information from WMI based on UpdateID and UpdateTitle
-            $GetCMUpdate = Get-CimInstance -Namespace root\ccm\clientSDK -Query “SELECT * FROM CCM_SoftwareUpdate WHERE ArticleID = '$RunUpdateIDValue' AND Name LIKE '%$RunUpdateTitleValue%'”
+            $GetCMUpdate = Get-CimInstance -Namespace root\ccm\clientSDK -Query "SELECT * FROM CCM_SoftwareUpdate WHERE ArticleID = '$RunUpdateIDValue' AND Name LIKE '%$RunUpdateTitleValue%'"
         }
         catch {
             Write-Log -Level Error -Message "Failed to retrieve UpdateID from WMI with the CM client"
@@ -718,15 +700,26 @@ function Write-UpdateIDRegistry() {
 }
 
 # Create Display-ToastNotification function
+# Updated in version 2.2.0
 function Display-ToastNotification() {
-    $Load = [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime]
-    $Load = [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime]
-    # Load the notification into the required format
-    $ToastXml = New-Object -TypeName Windows.Data.Xml.Dom.XmlDocument
-    $ToastXml.LoadXml($Toast.OuterXml)
-    # Display the toast notification
     try {
-        [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($App).Show($ToastXml)
+        if ($isSystem -eq $true) {
+            Write-Log -Message "Confirmed SYSTEM context before displaying toast"
+            # is running under SYSTEM context
+            # show notification to all logged on users
+            & (Join-Path -Path $global:CustomScriptsPath -ChildPath "InvokePSScriptAsUser.ps1") "$PSCommandPath" "$Config"
+        } 
+        else {
+            Write-Log -Message "Confirmed USER context before displaying toast"
+            # is running under user context
+            $Load = [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime]
+            $Load = [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime]
+            # Load the notification into the required format
+            $ToastXml = New-Object -TypeName Windows.Data.Xml.Dom.XmlDocument
+            $ToastXml.LoadXml($Toast.OuterXml)
+            # Display the toast notification
+            [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($App).Show($ToastXml)
+        }
         Write-Log -Message "All good. Toast notification was displayed"
         # Using Write-Output for sending status to IME log when used with Endpoint Analytics in Intune
         Write-Output "All good. Toast notification was displayed"
@@ -740,6 +733,8 @@ function Display-ToastNotification() {
                 $speak.Dispose()
             }    
         }
+        # Saving time stamp of when toast notification was run into registry
+        Save-NotificationLastRunTime
         Exit 0
     }
     catch { 
@@ -752,14 +747,16 @@ function Display-ToastNotification() {
 }
 
 # Create Test-NTSystem function
-# If the script is being run as SYSTEM, the toast notification won't display
+# Testing to see if the script is being run as SYSTEM
+# Updated in version 2.2.0
 function Test-NTSystem() {  
     $currentUser = [Security.Principal.WindowsIdentity]::GetCurrent()
     if ($currentUser.IsSystem -eq $true) {
-        Write-Log -Message "The script is being run as SYSTEM. This is not supported. The script needs the current user's context" -Level Error
+        Write-Log -Message "Script is initially running in SYSTEM context. Please be vary, that this has limitations and may not work!"
         $true  
     }
     elseif ($currentUser.IsSystem -eq $false) {
+        Write-Log -Message "Script is initially running in USER context"
         $false
     }
 }
@@ -774,11 +771,9 @@ function Write-CustomActionRegistry() {
     param (
         [Parameter(Position="0")]
         [ValidateSet("ToastRunApplicationID","ToastRunPackageID","ToastRunUpdateID","ToastReboot")]
-        [string]
-        $ActionType,
+        [string]$ActionType,
         [Parameter(Position="1")]
-        [string]
-        $RegCommandPath = $global:CustomScriptsPath
+        [string]$RegCommandPath = $global:CustomScriptsPath
     )
     Write-Log -Message "Running Write-CustomActionRegistry function: $ActionType"
     switch ($ActionType) {
@@ -849,14 +844,15 @@ function Write-CustomActionRegistry() {
 # This function creates the custom scripts in ProgramData\ToastNotificationScript which is used to carry out custom protocol actions
 # HUGE shout-out to Chad Brower // @Brower_Cha on Twitter
 # Added in version 2.0.0
+# Updated in version 2.2.0
 function Write-CustomActionScript() {
     [CmdletBinding()]
     param (
         [Parameter(Position="0")]
-        [ValidateSet("ToastRunApplicationID","ToastRunPackageID","ToastRunUpdateID","ToastReboot")]
-        [string] $Type,
+        [ValidateSet("ToastRunApplicationID","ToastRunPackageID","ToastRunUpdateID","ToastReboot","InvokePSScriptAsUser")]
+        [string]$Type,
         [Parameter(Position="1")]
-        [String] $Path = $global:CustomScriptsPath
+        [String]$Path = $global:CustomScriptsPath
     )
     Write-Log -Message "Running Write-CustomActionScript function: $Type"
     switch ($Type) {
@@ -1091,6 +1087,7 @@ $AppArguments = @{
 if (-NOT[string]::IsNullOrEmpty($TestApplicationID)) {
     if ($TestApplicationID.InstallState -eq "NotInstalled") { Invoke-CimMethod -Namespace "ROOT\ccm\clientSDK" -ClassName CCM_Application -MethodName Install -Arguments $AppArguments }
     elseif ($TestApplicationID.InstallState -eq "Installed") { Invoke-CimMethod -Namespace "ROOT\ccm\clientSDK" -ClassName CCM_Application -MethodName Repair -Arguments $AppArguments }
+    elseif ($TestApplicationID.InstallState -eq "NotUpdated") { Invoke-CimMethod -Namespace "ROOT\ccm\clientSDK" -ClassName CCM_Application -MethodName Install -Arguments $AppArguments }
     if (Test-Path -Path "$env:windir\CCM\ClientUX\SCClient.exe") { Start-Process -FilePath "$env:windir\CCM\ClientUX\SCClient.exe" -ArgumentList "SoftwareCenter:Page=InstallationStatus" -WindowStyle Maximized }
 }
 exit 0
@@ -1113,13 +1110,349 @@ exit 0
             # Do not run another type; break
             Break
         }
+        InvokePSScriptAsUser {
+            # create ps1 script that can invoke another script under all logged users (if started as SYSTEM)
+            try {
+                $PS1FileName = 'InvokePSScriptAsUser.ps1'
+                try {
+                    New-Item -Path $Path -Name $PS1FileName -Force -OutVariable PathInfo | Out-Null
+                } 
+                catch {
+                    $ErrorMessage = $_.Exception.Message
+                    Write-Log -Level Error -Message "Error message: $ErrorMessage"
+                }
+                try {
+                    $GetCustomScriptPath = $PathInfo.FullName
+                    [String]$Script = @'
+param($File, $argument)
+
+$Source = @"
+using System;
+using System.Runtime.InteropServices;
+
+namespace Runasuser
+{
+    public static class ProcessExtensions
+    {
+        #region Win32 Constants
+
+        private const int CREATE_UNICODE_ENVIRONMENT = 0x00000400;
+        private const int CREATE_NO_WINDOW = 0x08000000;
+
+        private const int CREATE_NEW_CONSOLE = 0x00000010;
+
+        private const uint INVALID_SESSION_ID = 0xFFFFFFFF;
+        private static readonly IntPtr WTS_CURRENT_SERVER_HANDLE = IntPtr.Zero;
+
+        #endregion
+
+        #region DllImports
+
+        [DllImport("advapi32.dll", EntryPoint = "CreateProcessAsUser", SetLastError = true, CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
+        private static extern bool CreateProcessAsUser(
+            IntPtr hToken,
+            String lpApplicationName,
+            String lpCommandLine,
+            IntPtr lpProcessAttributes,
+            IntPtr lpThreadAttributes,
+            bool bInheritHandle,
+            uint dwCreationFlags,
+            IntPtr lpEnvironment,
+            String lpCurrentDirectory,
+            ref STARTUPINFO lpStartupInfo,
+            out PROCESS_INFORMATION lpProcessInformation);
+
+        [DllImport("advapi32.dll", EntryPoint = "DuplicateTokenEx")]
+        private static extern bool DuplicateTokenEx(
+            IntPtr ExistingTokenHandle,
+            uint dwDesiredAccess,
+            IntPtr lpThreadAttributes,
+            int TokenType,
+            int ImpersonationLevel,
+            ref IntPtr DuplicateTokenHandle);
+
+        [DllImport("userenv.dll", SetLastError = true)]
+        private static extern bool CreateEnvironmentBlock(ref IntPtr lpEnvironment, IntPtr hToken, bool bInherit);
+
+        [DllImport("userenv.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool DestroyEnvironmentBlock(IntPtr lpEnvironment);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool CloseHandle(IntPtr hSnapshot);
+
+        [DllImport("kernel32.dll")]
+        private static extern uint WTSGetActiveConsoleSessionId();
+
+        [DllImport("Wtsapi32.dll")]
+        private static extern uint WTSQueryUserToken(uint SessionId, ref IntPtr phToken);
+
+        [DllImport("wtsapi32.dll", SetLastError = true)]
+        private static extern int WTSEnumerateSessions(
+            IntPtr hServer,
+            int Reserved,
+            int Version,
+            ref IntPtr ppSessionInfo,
+            ref int pCount);
+
+        #endregion
+
+        #region Win32 Structs
+
+        private enum SW
+        {
+            SW_HIDE = 0,
+            SW_SHOWNORMAL = 1,
+            SW_NORMAL = 1,
+            SW_SHOWMINIMIZED = 2,
+            SW_SHOWMAXIMIZED = 3,
+            SW_MAXIMIZE = 3,
+            SW_SHOWNOACTIVATE = 4,
+            SW_SHOW = 5,
+            SW_MINIMIZE = 6,
+            SW_SHOWMINNOACTIVE = 7,
+            SW_SHOWNA = 8,
+            SW_RESTORE = 9,
+            SW_SHOWDEFAULT = 10,
+            SW_MAX = 10
+        }
+
+        private enum WTS_CONNECTSTATE_CLASS
+        {
+            WTSActive,
+            WTSConnected,
+            WTSConnectQuery,
+            WTSShadow,
+            WTSDisconnected,
+            WTSIdle,
+            WTSListen,
+            WTSReset,
+            WTSDown,
+            WTSInit
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct PROCESS_INFORMATION
+        {
+            public IntPtr hProcess;
+            public IntPtr hThread;
+            public uint dwProcessId;
+            public uint dwThreadId;
+        }
+
+        private enum SECURITY_IMPERSONATION_LEVEL
+        {
+            SecurityAnonymous = 0,
+            SecurityIdentification = 1,
+            SecurityImpersonation = 2,
+            SecurityDelegation = 3,
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct STARTUPINFO
+        {
+            public int cb;
+            public String lpReserved;
+            public String lpDesktop;
+            public String lpTitle;
+            public uint dwX;
+            public uint dwY;
+            public uint dwXSize;
+            public uint dwYSize;
+            public uint dwXCountChars;
+            public uint dwYCountChars;
+            public uint dwFillAttribute;
+            public uint dwFlags;
+            public short wShowWindow;
+            public short cbReserved2;
+            public IntPtr lpReserved2;
+            public IntPtr hStdInput;
+            public IntPtr hStdOutput;
+            public IntPtr hStdError;
+        }
+
+        private enum TOKEN_TYPE
+        {
+            TokenPrimary = 1,
+            TokenImpersonation = 2
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct WTS_SESSION_INFO
+        {
+            public readonly UInt32 SessionID;
+
+            [MarshalAs(UnmanagedType.LPStr)]
+            public readonly String pWinStationName;
+
+            public readonly WTS_CONNECTSTATE_CLASS State;
+        }
+
+        #endregion
+
+        // Gets the user token from the currently active session
+        private static bool GetSessionUserToken(ref IntPtr phUserToken)
+        {
+            var bResult = false;
+            var hImpersonationToken = IntPtr.Zero;
+            var activeSessionId = INVALID_SESSION_ID;
+            var pSessionInfo = IntPtr.Zero;
+            var sessionCount = 0;
+
+            // Get a handle to the user access token for the current active session.
+            if (WTSEnumerateSessions(WTS_CURRENT_SERVER_HANDLE, 0, 1, ref pSessionInfo, ref sessionCount) != 0)
+            {
+                var arrayElementSize = Marshal.SizeOf(typeof(WTS_SESSION_INFO));
+                var current = pSessionInfo;
+
+                for (var i = 0; i < sessionCount; i++)
+                {
+                    var si = (WTS_SESSION_INFO)Marshal.PtrToStructure((IntPtr)current, typeof(WTS_SESSION_INFO));
+                    current += arrayElementSize;
+
+                    if (si.State == WTS_CONNECTSTATE_CLASS.WTSActive)
+                    {
+                        activeSessionId = si.SessionID;
+                    }
+                }
+            }
+
+            // If enumerating did not work, fall back to the old method
+            if (activeSessionId == INVALID_SESSION_ID)
+            {
+                activeSessionId = WTSGetActiveConsoleSessionId();
+            }
+
+            if (WTSQueryUserToken(activeSessionId, ref hImpersonationToken) != 0)
+            {
+                // Convert the impersonation token to a primary token
+                bResult = DuplicateTokenEx(hImpersonationToken, 0, IntPtr.Zero,
+                    (int)SECURITY_IMPERSONATION_LEVEL.SecurityImpersonation, (int)TOKEN_TYPE.TokenPrimary,
+                    ref phUserToken);
+
+                CloseHandle(hImpersonationToken);
+            }
+
+            return bResult;
+        }
+
+        public static bool StartProcessAsCurrentUser(string appPath, string cmdLine = null, string workDir = null, bool visible = true)
+        {
+            var hUserToken = IntPtr.Zero;
+            var startInfo = new STARTUPINFO();
+            var procInfo = new PROCESS_INFORMATION();
+            var pEnv = IntPtr.Zero;
+            int iResultOfCreateProcessAsUser;
+
+            startInfo.cb = Marshal.SizeOf(typeof(STARTUPINFO));
+
+            try
+            {
+                if (!GetSessionUserToken(ref hUserToken))
+                {
+                    throw new Exception("StartProcessAsCurrentUser: GetSessionUserToken failed.");
+                }
+
+                uint dwCreationFlags = CREATE_UNICODE_ENVIRONMENT | (uint)(visible ? CREATE_NEW_CONSOLE : CREATE_NO_WINDOW);
+                startInfo.wShowWindow = (short)(visible ? SW.SW_SHOW : SW.SW_HIDE);
+                startInfo.lpDesktop = "winsta0\\default";
+
+                if (!CreateEnvironmentBlock(ref pEnv, hUserToken, false))
+                {
+                    throw new Exception("StartProcessAsCurrentUser: CreateEnvironmentBlock failed.");
+                }
+
+                if (!CreateProcessAsUser(hUserToken,
+                    appPath, // Application Name
+                    cmdLine, // Command Line
+                    IntPtr.Zero,
+                    IntPtr.Zero,
+                    false,
+                    dwCreationFlags,
+                    pEnv,
+                    workDir, // Working directory
+                    ref startInfo,
+                    out procInfo))
+                {
+                    iResultOfCreateProcessAsUser = Marshal.GetLastWin32Error();
+                    throw new Exception("StartProcessAsCurrentUser: CreateProcessAsUser failed.  Error Code -" + iResultOfCreateProcessAsUser);
+                }
+
+                iResultOfCreateProcessAsUser = Marshal.GetLastWin32Error();
+            }
+            finally
+            {
+                CloseHandle(hUserToken);
+                if (pEnv != IntPtr.Zero)
+                {
+                    DestroyEnvironmentBlock(pEnv);
+                }
+                CloseHandle(procInfo.hThread);
+                CloseHandle(procInfo.hProcess);
+            }
+
+            return true;
+        }
+
+    }
+}
+"@
+
+# Load the custom type
+Add-Type -ReferencedAssemblies 'System', 'System.Runtime.InteropServices' -TypeDefinition $Source -Language CSharp -ErrorAction Stop
+
+# Run PS as user to display the message box
+[Runasuser.ProcessExtensions]::StartProcessAsCurrentUser("$env:windir\System32\WindowsPowerShell\v1.0\Powershell.exe", " -ExecutionPolicy Bypass -NoProfile -WindowStyle Hidden -File `"$File`" $argument") | Out-Null
+'@
+                    if (-NOT[string]::IsNullOrEmpty($Script)) {
+                        Out-File -FilePath $GetCustomScriptPath -InputObject $Script -Encoding ASCII -Force
+                    }
+                } 
+                catch {
+                    Write-Log -Level Error "Failed to create the .ps1 script for $Type. Show notification if run under SYSTEM might not work"
+                    $ErrorMessage = $_.Exception.Message
+                    Write-Log -Level Error -Message "Error message: $ErrorMessage"
+                }
+
+            } 
+            catch {
+                Write-Log -Level Error "Failed to create the .ps1 script for $Type. Show notification if run under SYSTEM might not work"
+                $ErrorMessage = $_.Exception.Message
+                Write-Log -Level Error -Message "Error message: $ErrorMessage"
+            }
+        }
     }
 }
 
-######### GENERAL VARIABLES #########
-# Global variables
+# Create function to retrieve the last run time of the notification
+# Added in version 2.2.0
+function Get-NotificationLastRunTime() {
+    $LastRunTime = (Get-ItemProperty $global:RegistryPath -Name LastRunTime -ErrorAction Ignore).LastRunTime
+    $CurrentTime = Get-Date -Format s
+    if (-NOT[string]::IsNullOrEmpty($LastRunTime)) {
+        $Difference = ([datetime]$CurrentTime - ([datetime]$LastRunTime)) 
+        $MinutesSinceLastRunTime = [math]::Round($Difference.TotalMinutes)
+        Write-Log -Message "Toast notification was previously displayed $MinutesSinceLastRunTime minutes ago"
+        $MinutesSinceLastRunTime
+    }
+}
+
+# Create function to store the timestamp of the notification execution
+# Added in version 2.2.0
+function Save-NotificationLastRunTime() {
+    $RunTime = Get-Date -Format s
+    if (-NOT(Get-ItemProperty -Path $global:RegistryPath -Name LastRunTime -ErrorAction Ignore)) {
+        New-ItemProperty -Path $global:RegistryPath -Name LastRunTime -Value $RunTime -Force | Out-Null
+    }
+    else {
+        Set-ItemProperty -Path $global:RegistryPath -Name LastRunTime -Value $RunTime -Force | Out-Null
+    }
+}
+#endregion
+
+#region Variables
 # Setting global script version
-$global:ScriptVersion = "2.1.0"
+$global:ScriptVersion = "2.2.0"
 # Setting executing directory
 $global:ScriptPath = Split-Path -Parent $MyInvocation.MyCommand.Definition
 # Setting global custom action script location
@@ -1137,7 +1470,9 @@ $LogoImageTemp = "$env:TEMP\ToastLogoImage.jpg"
 $HeroImageTemp = "$env:TEMP\ToastHeroImage.jpg"
 # Setting path to local images
 $ImagesPath = "file:///$global:ScriptPath/Images"
+#endregion
 
+#region Main Process
 # Create the global registry path for the toast notification script
 if (-NOT(Test-Path -Path $global:RegistryPath)) {
     Write-Log -Message "ToastNotificationScript registry path not found. Creating it: $global:RegistryPath"
@@ -1165,18 +1500,18 @@ if (-NOT(Test-Path -Path $global:CustomScriptsPath)) {
 }
 
 # Testing for prerequisites
-# Testing if script is being run as SYSTEM. This is not supported as the toast notification needs the current user's context
-$isSystem = Test-NTSystem
-if ($isSystem -eq $True) {
-    Write-Log -Message "Aborting script" -Level Error
-    Exit 1
-}
-
 # Test if the script is being run on a supported version of Windows. Windows 10 AND workstation OS is required
 $SupportedWindowsVersion = Get-WindowsVersion
 if ($SupportedWindowsVersion -eq $False) {
     Write-Log -Message "Aborting script" -Level Error
     Exit 1
+}
+
+# Testing if script is being run as SYSTEM.
+$isSystem = Test-NTSystem
+if ($isSystem -eq $true) {
+    Write-Log -Message "The toast notification script is being run as SYSTEM. This is not recommended, but can be required in certain situations"
+    Write-Log -Message "Scripts and log file are now located in: C:\Windows\System32\config\systemprofile\AppData\Roaming\ToastNotificationScript"
 }
 
 # Testing for blockers of toast notifications in Windows
@@ -1272,6 +1607,9 @@ if(-NOT[string]::IsNullOrEmpty($Xml)) {
         # Creating Scripts and Protocols
         # Added in version 2.0.0
         $CreateScriptsProtocolsEnabled = $Xml.Configuration.Option | Where-Object {$_.Name -like 'CreateScriptsAndProtocols'} | Select-Object -ExpandProperty 'Enabled'
+        # Added in version 2.2.0
+        $LimitToastToRunEveryMinutesEnabled = $Xml.Configuration.Option | Where-Object {$_.Name -like 'LimitToastToRunEveryMinutes'} | Select-Object -ExpandProperty 'Enabled'
+        $LimitToastToRunEveryMinutesValue = $Xml.Configuration.Option | Where-Object {$_.Name -like 'LimitToastToRunEveryMinutes'} | Select-Object -ExpandProperty 'Value'
         $RunPackageIDEnabled = $Xml.Configuration.Option | Where-Object {$_.Name -like 'RunPackageID'} | Select-Object -ExpandProperty 'Enabled'
         $RunPackageIDValue = $Xml.Configuration.Option | Where-Object {$_.Name -like 'RunPackageID'} | Select-Object -ExpandProperty 'Value'
         $RunApplicationIDEnabled = $Xml.Configuration.Option | Where-Object {$_.Name -like 'RunApplicationID'} | Select-Object -ExpandProperty 'Enabled'
@@ -1397,7 +1735,7 @@ if (($ADPasswordExpiration -eq "True") -AND ($PendingRebootUptime -eq "True")) {
 }
 if (($SCAppStatus -eq "True") -AND (-NOT(Get-Service -Name ccmexec))) {
     Write-Log -Level Error -Message "Error. Using Software Center app for the notification requires the ConfigMgr client installed"
-    Write-Log -Level Error -Message "Error. Please install the ConfigMgr cient or use Powershell as app doing the notification"
+    Write-Log -Level Error -Message "Error. Please install the ConfigMgr client or use Powershell as app doing the notification"
     Exit 1
 }
 if (($SCAppStatus -eq "True") -AND ($PSAppStatus -eq "True")) {
@@ -1533,12 +1871,6 @@ if (($Action -eq "ToastReboot:") -AND ($RunApplicationIDEnabled -eq "True")) {
 }
 # New checks for conflicting selections. Trying to prevent combinations which will make the toast render without buttons
 # Added in version 2.1.0
-if (($ActionButton1Enabled -ne "True") -AND ($ActionButton2Enabled -eq "True")){
-    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
-    Write-Log -Level Error -Message "You can't have ActionButton2 enabled and ActionButton1 not enabled"
-    Write-Log -Level Error -Message "ActionButton1 must be enabled for ActionButton2 to be enabled. Check your config"
-    Exit 1
-}
 if (($ActionButton2Enabled -eq "True") -AND ($SnoozeButtonEnabled -eq "True")){
     Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
     Write-Log -Level Error -Message "You can't have ActionButton2 enabled and SnoozeButton enabled at the same time"
@@ -1564,6 +1896,20 @@ if (($SnoozeButtonEnabled -eq "True") -AND ($ADPasswordExpirationTextEnabled -eq
     Exit 1
 }
 
+# Added in version 2.2.0
+# This option is able to prevent multiple toast notification from being displayed in a row
+if ($LimitToastToRunEveryMinutesEnabled -eq "True") {
+    $LastRunTimeOutput = Get-NotificationLastRunTime
+    if (-NOT[string]::IsNullOrEmpty($LastRunTimeOutput)) {
+        if ($LastRunTimeOutput -lt $LimitToastToRunEveryMinutesValue) {
+            Write-Log -Level Error -Message "Toast notification was displayed too recently"
+            Write-Log -Level Error -Message "Toast notification was displayed $LastRunTimeOutput minutes ago and the config.xml is configured to allow $LimitToastToRunEveryMinutesValue minutes intervals"
+            Write-Log -Level Error -Message "This is done to prevent ConfigMgr catching up on missed schedules, and thus display multiple toasts of the same appearance in a row"
+            break   
+        }    
+    }
+}
+
 # Downloading images into user's temp folder if images are hosted online
 if (($LogoImageFileName.StartsWith("https://")) -OR ($LogoImageFileName.StartsWith("http://"))) {
     Write-Log -Message "ToastLogoImage appears to be hosted online. Will need to download the file"
@@ -1581,7 +1927,7 @@ if (($LogoImageFileName.StartsWith("https://")) -OR ($LogoImageFileName.StartsWi
         }
     }
     else {
-        Write-Log -Level Error -Message "The image supposedly located on $LogoImageFileName is not available"
+        Write-Log -Level Error -Message "The picture supposedly located on $LogoImageFileName is not available"
     }
 }
 if (($HeroImageFileName.StartsWith("https://")) -OR ($HeroImageFileName.StartsWith("http://"))) {
@@ -1629,6 +1975,7 @@ if ($CreateScriptsProtocolsEnabled -eq "True") {
                     Write-CustomActionScript -Type ToastRunApplicationID
                     Write-CustomActionScript -Type ToastRunPackageID
                     Write-CustomActionScript -Type ToastRunUpdateID
+                    Write-CustomActionScript -Type InvokePSScriptAsUser
                     New-ItemProperty -Path $global:RegistryPath -Name $RegistryName -Value $global:ScriptVersion -PropertyType "String" -Force | Out-Null
                 }
                 catch { 
@@ -1763,7 +2110,7 @@ if ($GreetGivenName -eq "True") {
 
 # Formatting the toast notification XML
 # Create the default toast notification XML with action button and dismiss button
-if (($ActionButton1Enabled -eq "True") -AND ($ActionButton2Enabled -ne "True") -AND ($DismissButtonEnabled -eq "True")) {
+if (($ActionButton1Enabled -eq "True") -AND ($DismissButtonEnabled -eq "True")) {
     Write-Log -Message "Creating the xml for action button and dismiss button"
 [xml]$Toast = @"
 <toast scenario="$Scenario">
@@ -1799,7 +2146,7 @@ if (($ActionButton1Enabled -eq "True") -AND ($ActionButton2Enabled -ne "True") -
 }
 
 # NO action button and NO dismiss button
-if (($ActionButton1Enabled -ne "True") -AND ($ActionButton2Enabled -ne "True") -AND ($DismissButtonEnabled -ne "True")) {
+if (($ActionButton1Enabled -ne "True") -AND ($DismissButtonEnabled -ne "True")) {
     Write-Log -Message "Creating the xml for no action button and no dismiss button"
 [xml]$Toast = @"
 <toast scenario="$Scenario">
@@ -1833,7 +2180,7 @@ if (($ActionButton1Enabled -ne "True") -AND ($ActionButton2Enabled -ne "True") -
 }
 
 # Action button and NO dismiss button
-if (($ActionButton1Enabled -eq "True") -AND ($ActionButton2Enabled -ne "True") -AND ($DismissButtonEnabled -ne "True")) {
+if (($ActionButton1Enabled -eq "True") -AND ($DismissButtonEnabled -ne "True")) {
     Write-Log -Message "Creating the xml for no dismiss button"
 [xml]$Toast = @"
 <toast scenario="$Scenario">
@@ -1868,7 +2215,7 @@ if (($ActionButton1Enabled -eq "True") -AND ($ActionButton2Enabled -ne "True") -
 }
 
 # Dismiss button and NO action button
-if (($ActionButton1Enabled -ne "True") -AND ($ActionButton2Enabled -ne "True") -AND ($DismissButtonEnabled -eq "True")) {
+if (($ActionButton1Enabled -ne "True") -AND ($DismissButtonEnabled -eq "True")) {
     Write-Log -Message "Creating the xml for no action button"
 [xml]$Toast = @"
 <toast scenario="$Scenario">
@@ -1902,8 +2249,9 @@ if (($ActionButton1Enabled -ne "True") -AND ($ActionButton2Enabled -ne "True") -
 "@
 }
 
+# Action button2 - this option will always enable both actionbutton1, actionbutton2 and dismiss button regardless of config settings
 if ($ActionButton2Enabled -eq "True") {
-    Write-Log -Message "Creating the xml for displaying two action buttons and dismiss button"
+    Write-Log -Message "Creating the xml for displaying the second action button: actionbutton2"
     Write-Log -Message "This will always enable both action buttons and the dismiss button" -Level Warn
     Write-Log -Message "Replacing any previous formatting of the toast xml" -Level Warn
 [xml]$Toast = @"
@@ -1940,9 +2288,9 @@ if ($ActionButton2Enabled -eq "True") {
 "@
 }
 
-# Snooze button - this option will always enable both action button and dismiss button regardless of config settings
+# Snooze button - this option will always enable actionbutton1, snooze button and dismiss button regardless of config settings
 if ($SnoozeButtonEnabled -eq "True") {
-    Write-Log -Message "Creating the xml for snooze button"
+    Write-Log -Message "Creating the xml for displaying the snooze button"
     Write-Log -Message "This will always enable the action button as well as the dismiss button" -Level Warn
     Write-Log -Message "Replacing any previous formatting of the toast xml" -Level Warn
 [xml]$Toast = @"
@@ -2116,3 +2464,4 @@ if (($UpgradeOS -ne "True") -AND ($PendingRebootCheck -ne "True") -AND ($Pending
 else {
     Write-Log -Level Warn -Message "Conditions for displaying default toast notification are not fulfilled"
 }
+#endregion

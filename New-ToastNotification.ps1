@@ -134,6 +134,8 @@
 param(
     [Parameter(HelpMessage='Path to XML Configuration File')]
     [string]$Config
+    ,
+    [switch] $showEvenIfNotificationExists
 )
 
 #region ######## FUNCTIONS #########
@@ -1100,6 +1102,40 @@ exit 0
     }
 }
 
+function Exit-IfSameNotificationExist {
+    param (
+        [Parameter(Mandatory = $true)]
+        [string] $appID
+        ,
+        # to filter just specific notifications
+        [string] $notificationText
+    )
+
+    if ($notificationText) {
+        $escapedText = [regex]::Escape($notificationText)
+    } else {
+        $escapedText = ".*"
+    }
+
+    # get snoozed notifications
+    $Load = [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime]
+    $toastNotifier = [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($appID)
+    $scheduled = $toastNotifier.getScheduledToastNotifications()
+
+    $scheduled | % {
+        if ($_.Content.InnerText -match $escapedText) {
+            Write-Log -Message "There is already same notification snoozed ($($_.DeliveryTime)). Exiting" -Level Warn
+            exit
+        }
+    }
+
+    # get active/action center notifications
+    if ([Windows.UI.Notifications.ToastNotificationManager]::History.GetHistory($appID) | ? { $_.content.innertext -match $escapedText }) {
+        Write-Log -Message "There is already shown the same notification. Exiting" -Level Warn
+        exit
+    }
+}
+
 #endregion ######## FUNCTIONS #########
 
 #region ######## GENERAL VARIABLES #########
@@ -1346,6 +1382,18 @@ if(-NOT[string]::IsNullOrEmpty($Xml)) {
 #endregion ####### GENERAL VARIABLES #########
 
 #region ####### CHECKS #########
+
+# exit if same notification is already present
+if (!$showEvenIfNotificationExists) {
+    if ($SCAppStatus -eq "True") {
+        $App = "Microsoft.SoftwareCenter.DesktopToasts"
+    }
+    if ($PSAppStatus -eq "True") {
+        $App = "{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\WindowsPowerShell\v1.0\powershell.exe"
+    }
+
+    Exit-IfSameNotificationExist -appID $App -notificationText $BodyText1
+}
 
 if ($ActionButton1Content -match "^ToastRunApplicationID:\s*$") {
     Write-Log -Level Error -Message "Error. Incomplete Value in the $Config file Action1 tag"

@@ -1,21 +1,17 @@
 # Toast Notification Script
 
-## Current version: 2.1.0
+## Current version: 2.2.0
 
-Download the complete Windows 10 Toast Notification Script: https://github.com/imabdk/Toast-Notification-Script/blob/master/ToastNotificationScript2.1.0.zip
+Download the complete Windows 10 Toast Notification Script: https://github.com/imabdk/Toast-Notification-Script/blob/master/ToastNotificationScript2.2.0.zip
 
 Blog posts, documentation as well as if any questions, please use: https://www.imab.dk/windows-10-toast-notification-script/
 
 ## What's New
- - 2.1.0 - Added a second action button: ActionButton2
-   - This allows you to have 2 separate actions. Example: Action1 starts a task sequence, action2 sends the user to a web page for more info
+
+- 2.2.0 - Added built-in prevention of having multiple toast notifications to be displayed in a row
+   - This is something that can happen, if a device misses a schedule in ConfigMgr
+   - The nature of ConfigMgr is to catch up on the missed schedule, and this can lead to multiple toast notifications being displayed
    - This will require new config.xml files
-  - Reworked Get-GivenName function
-    - Now looks for given name in 1) local Active Directory 2) with WMI and the ConfigMgr client 3) directly in registry
-    - Now checks 3 places for given name, and if no given name found at all, a placeholder will be used
-  - Fixed CustomAudioToSpeech option
-    - This part haven't worked for a while it seems
-    - Only works properly with en-US language
-  - Added Enable-WindowsPushNotifications function // Thank you @ Trevor Jones: https://smsagent.blog/2020/11/12/prevent-users-from-disabling-toast-notifications-can-it-be-done/
-    - This will force enable Windows toast notification for the logged on user, if generally disabled
-    - A Windows service will be restarted in the process in the context of the user
+  - Added the ability to run the script coming from SYSTEM context
+   - This has proven to only work with packages/programs/task sequences and when testing with psexec
+   - Running the script in SYSTEM, with the script feature in configmgr and proactive remediations in Intune, still yields unexpected results

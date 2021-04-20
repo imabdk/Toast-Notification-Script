@@ -128,7 +128,7 @@
     2.2.0 -   Added built-in prevention of having multiple toast notifications to be displayed in a row
                 - This is something that can happen, if a device misses a schedule in configmgr. 
                     - The nature of configmgr is to catch up on the missed schedule, and this can lead to multiple toast notifications being displayed
-              Added the ability to run the script coming from SYSTEM context
+              Added the ability to run the script coming from SYSTEM context // Thank you @ Andrew: https://twitter.com/AndrewZtrhgf :-)
                 - This has proven to only work with packages/programs/task sequences and when testing with psexec. 
                 - Running the script in SYSTEM, with the script feature in configmgr and proactive remediations in Intune, still yields unexpected results
        

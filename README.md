@@ -10,6 +10,6 @@ Blog posts, documentation as well as if any questions, please use: https://www.i
 
 - 2.3.0 – Added the Register-CustomNotificationApp function
    - This function retrieves the value of the CustomNotificationApp option from the config.xml
-      - The function then uses this name, to create a custom app for doing the notification.
+      - The function then uses this name, to create a custom app for doing the notification
       - This will reflect in the shown toast notification, instead of Software Center or PowerShell
    - This also creates the custom notifcation app with a prevention from disabling the toast notifications via the UI

@@ -1,6 +1,6 @@
 # Toast Notification Script
 
-## Current version: 2.2.0
+## Current version: 2.3.0
 
 Download the complete Windows 10 Toast Notification Script: https://github.com/imabdk/Toast-Notification-Script/blob/master/ToastNotificationScript2.3.0.zip
 

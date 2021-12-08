@@ -14,7 +14,7 @@
 
 .NOTES
     Filename: New-ToastNotification.ps1
-    Version: 2.2.0
+    Version: 2.3.0
     Author: Martin Bengtsson
     Blog: www.imab.dk
     Twitter: @mwbengtsson
@@ -127,10 +127,16 @@
 
     2.2.0 -   Added built-in prevention of having multiple toast notifications to be displayed in a row
                 - This is something that can happen, if a device misses a schedule in configmgr. 
-                    - The nature of configmgr is to catch up on the missed schedule, and this can lead to multiple toast notifications being displayed
+                - The nature of configmgr is to catch up on the missed schedule, and this can lead to multiple toast notifications being displayed
               Added the ability to run the script coming from SYSTEM context // Thank you @ Andrew: https://twitter.com/AndrewZtrhgf :-)
                 - This has proven to only work with packages/programs/task sequences and when testing with psexec. 
                 - Running the script in SYSTEM, with the script feature in configmgr and proactive remediations in Intune, still yields unexpected results
+
+    2.3.0 -   Added the Register-CustomNotificationApp function
+                - This function retrieves the value of the CustomNotificationApp option from the config.xml
+                    - The function then uses this name, to create a custom app for doing the notification.
+                        - This will reflect in the shown toast notification, instead of Software Center or PowerShell
+                        - This also creates the custom notifcation app with a prevention from disabling the toast notifications via the UI
        
 .LINK
     https://www.imab.dk/windows-10-toast-notification-script/
@@ -1448,11 +1454,53 @@ function Save-NotificationLastRunTime() {
         Set-ItemProperty -Path $global:RegistryPath -Name LastRunTime -Value $RunTime -Force | Out-Null
     }
 }
+# Create function to register custom notification app
+# Added in version 2.3.0
+# Bits and pieces kindly borrowed from Mr. Trevor Jones: smsagent.blog
+function Register-CustomNotificationApp($fAppID,$fAppDisplayName) {
+    Write-Log -Message "Running Register-NotificationApp function"
+    $AppID = $fAppID
+    $AppDisplayName = $fAppDisplayName
+    # This removes the option to disable to toast notification
+    [int]$ShowInSettings = 0
+    # Adds an icon next to the display name of the notifyhing app
+    [int]$IconBackgroundColor = 0
+    $IconUri = "%SystemRoot%\ImmersiveControlPanel\images\logo.png"
+    # Moved this into HKCU, in order to modify this directly from the toast notification running in user context
+    $AppRegPath = "HKCU:\Software\Classes\AppUserModelId"
+    $RegPath = "$AppRegPath\$AppID"
+    try {
+        if (-NOT(Test-Path $RegPath)) {
+            New-Item -Path $AppRegPath -Name $AppID -Force | Out-Null
+        }
+        $DisplayName = Get-ItemProperty -Path $RegPath -Name DisplayName -ErrorAction SilentlyContinue | Select -ExpandProperty DisplayName -ErrorAction SilentlyContinue
+        if ($DisplayName -ne $AppDisplayName) {
+            New-ItemProperty -Path $RegPath -Name DisplayName -Value $AppDisplayName -PropertyType String -Force | Out-Null
+        }
+        $ShowInSettingsValue = Get-ItemProperty -Path $RegPath -Name ShowInSettings -ErrorAction SilentlyContinue | Select -ExpandProperty ShowInSettings -ErrorAction SilentlyContinue
+        if ($ShowInSettingsValue -ne $ShowInSettings) {
+            New-ItemProperty -Path $RegPath -Name ShowInSettings -Value $ShowInSettings -PropertyType DWORD -Force | Out-Null
+        }
+        $IconUriValue = Get-ItemProperty -Path $RegPath -Name IconUri -ErrorAction SilentlyContinue | Select -ExpandProperty IconUri -ErrorAction SilentlyContinue
+        if ($IconUriValue -ne $IconUri) {
+            New-ItemProperty -Path $RegPath -Name IconUri -Value $IconUri -PropertyType ExpandString -Force | Out-Null
+        }
+        $IconBackgroundColorValue = Get-ItemProperty -Path $RegPath -Name IconBackgroundColor -ErrorAction SilentlyContinue | Select -ExpandProperty IconBackgroundColor -ErrorAction SilentlyContinue
+        if ($IconBackgroundColorValue -ne $IconBackgroundColor) {
+            New-ItemProperty -Path $RegPath -Name IconBackgroundColor -Value $IconBackgroundColor -PropertyType ExpandString -Force | Out-Null
+        }
+        Write-Log "Created registry entries for custom notification app: $fAppDisplayName"
+    }
+    catch {
+        Write-Log -Message "Failed to create one or more registry entries for the custom notification app" -Level Error
+        Write-Log -Message "Toast Notifications are usually not displayed if the notification app does not exist" -Level Error
+    }
+}
 #endregion
 
 #region Variables
 # Setting global script version
-$global:ScriptVersion = "2.2.0"
+$global:ScriptVersion = "2.3.0"
 # Setting executing directory
 $global:ScriptPath = Split-Path -Parent $MyInvocation.MyCommand.Definition
 # Setting global custom action script location
@@ -1620,6 +1668,10 @@ if(-NOT[string]::IsNullOrEmpty($Xml)) {
         $RunUpdateIDValue = $Xml.Configuration.Option | Where-Object {$_.Name -like 'RunUpdateID'}| Select-Object -ExpandProperty 'Value'
         $RunUpdateTitleEnabled = $Xml.Configuration.Option | Where-Object {$_.Name -like 'RunUpdateTitle'} | Select-Object -ExpandProperty 'Enabled'
         $RunUpdateTitleValue = $Xml.Configuration.Option | Where-Object {$_.Name -like 'RunUpdateTitle'} | Select-Object -ExpandProperty 'Value'
+        # Custom app doing the notification
+        # Added in version 2.3.0
+        $CustomAppEnabled = $Xml.Configuration.Option | Where-Object {$_.Name -like 'CustomNotificationApp'} | Select-Object -ExpandProperty 'Enabled'
+        $CustomAppValue = $Xml.Configuration.Option | Where-Object {$_.Name -like 'CustomNotificationApp'} | Select-Object -ExpandProperty 'Value'
         $SCAppName = $Xml.Configuration.Option | Where-Object {$_.Name -like 'UseSoftwareCenterApp'} | Select-Object -ExpandProperty 'Name'
         $SCAppStatus = $Xml.Configuration.Option | Where-Object {$_.Name -like 'UseSoftwareCenterApp'} | Select-Object -ExpandProperty 'Enabled'
         $PSAppName = $Xml.Configuration.Option | Where-Object {$_.Name -like 'UsePowershellApp'} | Select-Object -ExpandProperty 'Name'
@@ -1743,11 +1795,23 @@ if (($SCAppStatus -eq "True") -AND ($PSAppStatus -eq "True")) {
     Write-Log -Level Error -Message "Error. You can't have both SoftwareCenter app set to True AND PowershellApp set to True at the same time. Check your config"
     Exit 1
 }
-if (($SCAppStatus -ne "True") -AND ($PSAppStatus -ne "True")) {
+if (($SCAppStatus -ne "True") -AND ($PSAppStatus -ne "True") -AND ($CustomAppEnabled -ne "True")) {
     Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
     Write-Log -Level Error -Message "Error. You need to enable at least 1 app in the config doing the notification. ie. Software Center or Powershell. Check your config"
     Exit 1
 }
+# Added in 2.3.0
+if (($SCAppStatus -eq "True") -AND ($CustomAppEnabled -eq "True")) {
+    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
+    Write-Log -Level Error -Message "Error. You can't have both SoftwareCenter app set to True AND CustomNotificationApp set to True at the same time. Check your config"
+    Exit 1
+}
+if (($CustomAppEnabled -eq "True") -AND ($PSAppStatus -eq "True")) {
+    Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
+    Write-Log -Level Error -Message "Error. You can't have both PowerShell app set to True AND CustomNotificationApp set to True at the same time. Check your config"
+    Exit 1
+}
+
 if (($UpgradeOS -eq "True") -AND ($PendingRebootUptimeTextEnabled -eq "True")) {
     Write-Log -Level Error -Message "Error. Conflicting selection in the $Config file" 
     Write-Log -Level Error -Message "Error. You can't have UpgradeOS set to True and PendingRebootUptimeText set to True at the same time. Check your config"
@@ -1895,6 +1959,14 @@ if (($SnoozeButtonEnabled -eq "True") -AND ($ADPasswordExpirationTextEnabled -eq
     Write-Log -Level Error -Message "That will result in too much text and the toast notification will render without buttons. Check your config"
     Exit 1
 }
+# Added in 2.3.0
+# This option enables you to create a custom app doing the notification. 
+# This also completely prevents the user from disabling the toast from within the UI (can be done with registry editing, if one knows how)
+if ($CustomAppEnabled -eq "True") {
+    # Hardcoding the AppID. Only the display name is interesting, thus this comes from the config.xml
+    $App = "Toast.Custom.App"
+    Register-CustomNotificationApp -fAppID $App -fAppDisplayName $CustomAppValue
+}
 
 # Added in version 2.2.0
 # This option is able to prevent multiple toast notification from being displayed in a row
@@ -2033,6 +2105,32 @@ if ($PendingRebootUptime -eq "True") {
     Write-Log -Message "PendingRebootUptime set to True. Checking for device uptime. Current uptime is: $Uptime days"
 }
 
+# Check for required entries in registry for when using Custom App as application for the toast
+if ($CustomAppEnabled -eq "True") {
+    # Path to the notification app doing the actual toast
+    $RegPath = "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Notifications\Settings"
+    # For clarity, declaring the App variables once again
+    $App =  "Toast.Custom.App"
+    # Creating registry entries if they don't exists
+    if (-NOT(Test-Path -Path $RegPath\$App)) {
+        New-Item -Path $RegPath\$App -Force
+        New-ItemProperty -Path $RegPath\$App -Name "ShowInActionCenter" -Value 0 -PropertyType "DWORD"
+        New-ItemProperty -Path $RegPath\$App -Name "Enabled" -Value 1 -PropertyType "DWORD" -Force
+        New-ItemProperty -Path $RegPath\$App -Name "SoundFile" -PropertyType "STRING" -Force
+    }
+    # Make sure the app used with the action center is enabled
+    if ((Get-ItemProperty -Path $RegPath\$App -Name "Enabled" -ErrorAction SilentlyContinue).Enabled -ne "1") {
+        New-ItemProperty -Path $RegPath\$App -Name "Enabled" -Value 1 -PropertyType "DWORD" -Force
+    }    
+    if ((Get-ItemProperty -Path $RegPath\$App -Name "ShowInActionCenter" -ErrorAction SilentlyContinue).ShowInActionCenter -ne "0") {
+        New-ItemProperty -Path $RegPath\$App -Name "ShowInActionCenter" -Value 0 -PropertyType "DWORD" -Force
+    }
+    # Added to not play any sounds when notification is displayed with scenario: alarm
+    if (-NOT(Get-ItemProperty -Path $RegPath\$App -Name "SoundFile" -ErrorAction SilentlyContinue)) {
+        New-ItemProperty -Path $RegPath\$App -Name "SoundFile" -PropertyType "STRING" -Force
+    }
+}
+
 # Check for required entries in registry for when using Software Center as application for the toast
 if ($SCAppStatus -eq "True") {
     if (Get-Service -Name ccmexec -ErrorAction SilentlyContinue) {
@@ -2122,17 +2220,17 @@ if (($ActionButton1Enabled -eq "True") -AND ($DismissButtonEnabled -eq "True")) 
         <text>$HeaderText</text>
         <group>
             <subgroup>
-                <text hint-style="title" hint-wrap="true" >$TitleText</text>
+                <text hint-style="title" hint-wrap="true">$TitleText</text>
             </subgroup>
         </group>
         <group>
             <subgroup>     
-                <text hint-style="body" hint-wrap="true" >$BodyText1</text>
+                <text hint-style="body" hint-wrap="true">$BodyText1</text>
             </subgroup>
         </group>
         <group>
             <subgroup>     
-                <text hint-style="body" hint-wrap="true" >$BodyText2</text>
+                <text hint-style="body" hint-wrap="true">$BodyText2</text>
             </subgroup>
         </group>
     </binding>
@@ -2158,17 +2256,17 @@ if (($ActionButton1Enabled -ne "True") -AND ($DismissButtonEnabled -ne "True")) 
         <text>$HeaderText</text>
         <group>
             <subgroup>
-                <text hint-style="title" hint-wrap="true" >$TitleText</text>
+                <text hint-style="title" hint-wrap="true">$TitleText</text>
             </subgroup>
         </group>
         <group>
             <subgroup>     
-                <text hint-style="body" hint-wrap="true" >$BodyText1</text>
+                <text hint-style="body" hint-wrap="true">$BodyText1</text>
             </subgroup>
         </group>
         <group>
             <subgroup>     
-                <text hint-style="body" hint-wrap="true" >$BodyText2</text>
+                <text hint-style="body" hint-wrap="true">$BodyText2</text>
             </subgroup>
         </group>
     </binding>
@@ -2192,17 +2290,17 @@ if (($ActionButton1Enabled -eq "True") -AND ($DismissButtonEnabled -ne "True")) 
         <text>$HeaderText</text>
         <group>
             <subgroup>
-                <text hint-style="title" hint-wrap="true" >$TitleText</text>
+                <text hint-style="title" hint-wrap="true">$TitleText</text>
             </subgroup>
         </group>
         <group>
             <subgroup>     
-                <text hint-style="body" hint-wrap="true" >$BodyText1</text>
+                <text hint-style="body" hint-wrap="true">$BodyText1</text>
             </subgroup>
         </group>
         <group>
             <subgroup>     
-                <text hint-style="body" hint-wrap="true" >$BodyText2</text>
+                <text hint-style="body" hint-wrap="true">$BodyText2</text>
             </subgroup>
         </group>
     </binding>
@@ -2227,17 +2325,17 @@ if (($ActionButton1Enabled -ne "True") -AND ($DismissButtonEnabled -eq "True")) 
         <text>$HeaderText</text>
         <group>
             <subgroup>
-                <text hint-style="title" hint-wrap="true" >$TitleText</text>
+                <text hint-style="title" hint-wrap="true">$TitleText</text>
             </subgroup>
         </group>
         <group>
             <subgroup>     
-                <text hint-style="body" hint-wrap="true" >$BodyText1</text>
+                <text hint-style="body" hint-wrap="true">$BodyText1</text>
             </subgroup>
         </group>
         <group>
             <subgroup>     
-                <text hint-style="body" hint-wrap="true" >$BodyText2</text>
+                <text hint-style="body" hint-wrap="true">$BodyText2</text>
             </subgroup>
         </group>
     </binding>
@@ -2264,17 +2362,17 @@ if ($ActionButton2Enabled -eq "True") {
         <text>$HeaderText</text>
         <group>
             <subgroup>
-                <text hint-style="title" hint-wrap="true" >$TitleText</text>
+                <text hint-style="title" hint-wrap="true">$TitleText</text>
             </subgroup>
         </group>
         <group>
             <subgroup>     
-                <text hint-style="body" hint-wrap="true" >$BodyText1</text>
+                <text hint-style="body" hint-wrap="true">$BodyText1</text>
             </subgroup>
         </group>
         <group>
             <subgroup>     
-                <text hint-style="body" hint-wrap="true" >$BodyText2</text>
+                <text hint-style="body" hint-wrap="true">$BodyText2</text>
             </subgroup>
         </group>
     </binding>
@@ -2303,17 +2401,17 @@ if ($SnoozeButtonEnabled -eq "True") {
         <text>$HeaderText</text>
         <group>
             <subgroup>
-                <text hint-style="title" hint-wrap="true" >$TitleText</text>
+                <text hint-style="title" hint-wrap="true">$TitleText</text>
             </subgroup>
         </group>
         <group>
             <subgroup>     
-                <text hint-style="body" hint-wrap="true" >$BodyText1</text>
+                <text hint-style="body" hint-wrap="true">$BodyText1</text>
             </subgroup>
         </group>
         <group>
             <subgroup>     
-                <text hint-style="body" hint-wrap="true" >$BodyText2</text>
+                <text hint-style="body" hint-wrap="true">$BodyText2</text>
             </subgroup>
         </group>
     </binding>

@@ -19,6 +19,7 @@
 	<Option Name="DynamicDeadline" Enabled="True" Value="ScopeId_A9117680-D054-482B-BC97-532E6CBD0E6B/Application_fd55f35c-4e34-4490-a3ec-ee0b79233ec6" />	<!-- Adds an additional group to the toast with text about the deadline of the OSUpgrade. This will retrieve the deadline of the IPU from WMI -->
 	<Option Name="CreateScriptsAndProtocols" Enabled="True" /> <!-- Automatically create the needed custom scripts and protocols. This removes the need to do scripts and protocols outside of the script -->
 	<Option Name="LimitToastToRunEveryMinutes" Enabled="True" Value="5" /> <!-- Prevents the toast notification from being displayed again within the defined value (in minutes) -->
+	<Option Name="CustomNotificationApp" Enabled="True" Value="iMAB.DK NOTIFICATIONS"/>	<!-- The app in Windows doing the actual notification - can't be both SoftwareCenter and Powershell -->
 	<Option Name="UseSoftwareCenterApp" Enabled="True" />	<!-- The app in Windows doing the actual notification - can't be both SoftwareCenter and Powershell -->
 	<Option Name="UsePowershellApp" Enabled="False" />	<!-- The app in Windows doing the actual notification - can't be both SoftwareCenter and Powershell -->
 	<Option Name="CustomAudio" Enabled="False" />	<!-- Enable or disable a custom speak scenario, where the text will be read out aloud -->

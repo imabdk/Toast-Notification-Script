@@ -2425,7 +2425,6 @@ if ($SnoozeButtonEnabled -eq "True") {
         </input>
         <action activationType="protocol" arguments="$Action1" content="$ActionButton1Content" />
         <action activationType="system" arguments="snooze" hint-inputId="snoozeTime" content="$SnoozeButtonContent"/>
-        <action activationType="system" arguments="dismiss" content="$DismissButtonContent"/>
     </actions>
 </toast>
 "@

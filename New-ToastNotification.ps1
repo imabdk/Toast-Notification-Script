@@ -1688,6 +1688,7 @@ if(-NOT[string]::IsNullOrEmpty($Xml)) {
         $Scenario = $Xml.Configuration.Option | Where-Object {$_.Name -like 'Scenario'} | Select-Object -ExpandProperty 'Type'
         $Action1 = $Xml.Configuration.Option | Where-Object {$_.Name -like 'Action1'} | Select-Object -ExpandProperty 'Value'
         $Action2 = $Xml.Configuration.Option | Where-Object {$_.Name -like 'Action2'} | Select-Object -ExpandProperty 'Value'
+        $LaunchProtocol = $Xml.Configuration.Option | Where-Object {$_.Name -like 'LaunchProtocol'} | Select-Object -ExpandProperty 'Value'
         $GreetGivenName = $Xml.Configuration.Text | Where-Object {$_.Option -like 'GreetGivenName'} | Select-Object -ExpandProperty 'Enabled'
         $MultiLanguageSupport = $Xml.Configuration.Text | Where-Object {$_.Option -like 'MultiLanguageSupport'} | Select-Object -ExpandProperty 'Enabled'
         # Load Toast Notification buttons
@@ -2211,7 +2212,7 @@ if ($GreetGivenName -eq "True") {
 if (($ActionButton1Enabled -eq "True") -AND ($DismissButtonEnabled -eq "True")) {
     Write-Log -Message "Creating the xml for action button and dismiss button"
 [xml]$Toast = @"
-<toast scenario="$Scenario">
+<toast scenario="$Scenario" activationType= "protocol" launch="$LaunchProtocol">
     <visual>
     <binding template="ToastGeneric">
         <image placement="hero" src="$HeroImage"/>
@@ -2247,7 +2248,7 @@ if (($ActionButton1Enabled -eq "True") -AND ($DismissButtonEnabled -eq "True")) 
 if (($ActionButton1Enabled -ne "True") -AND ($DismissButtonEnabled -ne "True")) {
     Write-Log -Message "Creating the xml for no action button and no dismiss button"
 [xml]$Toast = @"
-<toast scenario="$Scenario">
+<toast scenario="$Scenario" activationType= "protocol" launch="$LaunchProtocol">
     <visual>
     <binding template="ToastGeneric">
         <image placement="hero" src="$HeroImage"/>
@@ -2281,7 +2282,7 @@ if (($ActionButton1Enabled -ne "True") -AND ($DismissButtonEnabled -ne "True")) 
 if (($ActionButton1Enabled -eq "True") -AND ($DismissButtonEnabled -ne "True")) {
     Write-Log -Message "Creating the xml for no dismiss button"
 [xml]$Toast = @"
-<toast scenario="$Scenario">
+<toast scenario="$Scenario" activationType= "protocol" launch="$LaunchProtocol">
     <visual>
     <binding template="ToastGeneric">
         <image placement="hero" src="$HeroImage"/>
@@ -2316,7 +2317,7 @@ if (($ActionButton1Enabled -eq "True") -AND ($DismissButtonEnabled -ne "True")) 
 if (($ActionButton1Enabled -ne "True") -AND ($DismissButtonEnabled -eq "True")) {
     Write-Log -Message "Creating the xml for no action button"
 [xml]$Toast = @"
-<toast scenario="$Scenario">
+<toast scenario="$Scenario" activationType= "protocol" launch="$LaunchProtocol">
     <visual>
     <binding template="ToastGeneric">
         <image placement="hero" src="$HeroImage"/>
@@ -2353,7 +2354,7 @@ if ($ActionButton2Enabled -eq "True") {
     Write-Log -Message "This will always enable both action buttons and the dismiss button" -Level Warn
     Write-Log -Message "Replacing any previous formatting of the toast xml" -Level Warn
 [xml]$Toast = @"
-<toast scenario="$Scenario">
+<toast scenario="$Scenario" activationType= "protocol" launch="$LaunchProtocol">
     <visual>
     <binding template="ToastGeneric">
         <image placement="hero" src="$HeroImage"/>
@@ -2392,7 +2393,7 @@ if ($SnoozeButtonEnabled -eq "True") {
     Write-Log -Message "This will always enable the action button as well as the dismiss button" -Level Warn
     Write-Log -Message "Replacing any previous formatting of the toast xml" -Level Warn
 [xml]$Toast = @"
-<toast scenario="$Scenario">
+<toast scenario="$Scenario" activationType= "protocol" launch="$LaunchProtocol">
     <visual>
     <binding template="ToastGeneric">
         <image placement="hero" src="$HeroImage"/>

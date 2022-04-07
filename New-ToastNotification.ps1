@@ -946,7 +946,7 @@ exit 0
                 }
                 try {
                     $GetCustomScriptPath = $PathInfo.FullName
-                    [String]$Script = 'shutdown /r /t 0 /d p:0:0 /c "Toast Notification Reboot"'
+                    [String]$Script = 'USOClient.exe RestartDevice ResumeUpdate && shutdown.exe /r /t 0 /d p:0:0 /c "Toast Notification Reboot"'
                     if (-NOT[string]::IsNullOrEmpty($Script)) {
                         Out-File -FilePath $GetCustomScriptPath -InputObject $Script -Encoding ASCII -Force
                     }

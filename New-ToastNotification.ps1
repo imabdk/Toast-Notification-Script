@@ -2552,6 +2552,21 @@ else {
     Write-Log -Level Warn -Message "Conditions for displaying toast notification for ADPasswordExpiration are not fulfilled"
 }
 
+# Toast used for Application installation
+if ($RunApplicationIDValue -and $RunApplicationIDEnabled -eq "True") {
+    $TestApplicationID = Get-CimInstance -ClassName CCM_Application -Namespace ROOT\ccm\ClientSDK -ErrorAction SilentlyContinue | Where-Object { $_.Id -eq $RunApplicationIDValue }
+
+    if ($TestApplicationID -and $TestApplicationID.InstallState -eq "Installed") {
+        Write-Log -Message "Application $RunApplicationIDValue is already installed. Toast notification won't be displayed"
+    }
+    else {
+        Write-Log -Message "Application $RunApplicationIDValue is not installed. Displaying toast notification"
+        Display-ToastNotification
+    }
+    # Stopping script. No need to accidently run further toasts
+    break
+}
+
 # Toast not used for either OS upgrade or Pending reboot OR ADPasswordExpiration. Run this if all features are set to false in config.xml
 if (($UpgradeOS -ne "True") -AND ($PendingRebootCheck -ne "True") -AND ($PendingRebootUptime -ne "True") -AND ($ADPasswordExpiration -ne "True")) {
     Write-Log -Message "Toast notification is not used in regards to OS upgrade OR Pending Reboots OR ADPasswordExpiration. Displaying default toast"

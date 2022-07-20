@@ -216,8 +216,7 @@ function Test-PendingRebootRegistry() {
     Write-Log -Message "Running Test-PendingRebootRegistry function"
     $CBSRebootKey = Get-ChildItem "HKLM:\Software\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending" -ErrorAction Ignore
     $WURebootKey = Get-Item "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired" -ErrorAction Ignore
-    $FileRebootKey = Get-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager" -Name PendingFileRenameOperations -ErrorAction Ignore
-    if (($CBSRebootKey -ne $null) -OR ($WURebootKey -ne $null) -OR ($FileRebootKey -ne $null)) {
+    if (($CBSRebootKey -ne $null) -OR ($WURebootKey -ne $null)) {
         Write-Log -Message "Check returned TRUE on ANY of the registry checks: Reboot is pending!"
         $true
     }

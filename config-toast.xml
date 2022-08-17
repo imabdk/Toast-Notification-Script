@@ -109,4 +109,28 @@
 		<Text Name="ComputerUptimeText">Datorns upptid:</Text>
 		<Text Name="ComputerUptimeDaysText">dagar</Text>
     </sv-SE>
+		<de-DE>		<!-- Default fallback language. This language will be used if MultiLanguageSupport is set to False or if no matching language is found -->
+		<Text Name="PendingRebootUptimeText">Ihr Computer benötigt einen Neustart, da Sie die maximal erlaubte Betriebszeit überschritten haben</Text>		<!-- Text used if the PendingRebootUptimeText Option is enabled -->
+		<Text Name="PendingRebootCheckText">Grund: Ausstehende Neustarts wurden in der Registrierung oder WMI gefunden..</Text>		<!-- Text used if the PendingRebootUptimeText Option is enabled -->
+		<Text Name="ADPasswordExpirationText">Ihr Password läuft an folgenden Tag ab:</Text>		<!-- Text used if the ADPasswordExpirationText Option is enabled -->
+		<Text Name="CustomAudioTextToSpeech">Hey Du - Wach auf. Dein Computer benötigt einen Neustart. Tue es jetzt</Text>		<!-- Text to speech used if the CustomAudioTextToSpeech Option is enabled -->
+		<Text Name="ActionButton">Jetzt Neustarten</Text>		<!-- Text on the ActionButton if enabled -->
+		<Text Name="DismissButton">Verschieben</Text>		<!-- Text on the DismissButton if enabled -->
+		<Text Name="SnoozeButton">Schlummern</Text>		<!-- Text on the SnoozeButton if enabled -->
+		<Text Name="AttributionText">www.imab.dk</Text>
+		<Text Name="HeaderText">Freundliche Erinnerung des Helpdesk</Text>
+		<Text Name="TitleText">Ihr Computer benötigt einen Neustart!</Text>
+		<Text Name="BodyText1">Aufgrund von Sicherheits und Stabilitätsgründen, bitten wir Sie ihren Computer sobald wie möglich Neuzustarten.</Text>
+		<Text Name="BodyText2">Das regelmäßige Neustarten ihres Computeres sorgt für ein Sicheres und Stabiles Windows. Besten Dank im Voraus.</Text>
+		<Text Name="SnoozeText">Wähle Schlummern um erneut Erinnert zu werden in: </Text>
+		<Text Name="DeadlineText">Ihre Frist ist:</Text>
+		<Text Name="GreetMorningText">Guten Morgen</Text>
+		<Text Name="GreetAfternoonText">Guten Tag</Text>
+		<Text Name="GreetEveningText">Guten Abend</Text>
+		<Text Name="MinutesText">Minuten</Text>
+		<Text Name="HourText">Stunde</Text>
+		<Text Name="HoursText">Stunden</Text>
+		<Text Name="ComputerUptimeText">Betriebszeit des Computers:</Text>
+		<Text Name="ComputerUptimeDaysText">Tage</Text>
+	</de-DE>
 </Configuration>

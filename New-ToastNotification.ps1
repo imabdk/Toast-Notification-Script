@@ -14,7 +14,7 @@
 
 .NOTES
     Filename: New-ToastNotification.ps1
-    Version: 2.3.0
+    Version: 2.3.1
     Author: Martin Bengtsson
     Blog: www.imab.dk
     Twitter: @mwbengtsson
@@ -137,7 +137,7 @@
                     - The function then uses this name, to create a custom app for doing the notification.
                         - This will reflect in the shown toast notification, instead of Software Center or PowerShell
                         - This also creates the custom notifcation app with a prevention from disabling the toast notifications via the UI
-       
+     2.3.1 -   Changed ToastRunPackageID script to use Invoke-CimMethod instead of calling wmi to succesfully run task sequences from script     
 .LINK
     https://www.imab.dk/windows-10-toast-notification-script/
 #> 
@@ -1014,8 +1014,12 @@ $RegistryPath = "HKCU:\SOFTWARE\ToastNotificationScript"
 $PackageID = (Get-ItemProperty -Path $RegistryPath -Name "RunPackageID").RunPackageID
 $TestPackageID = Get-WmiObject -Namespace ROOT\ccm\ClientSDK -Query "SELECT * FROM CCM_Program where PackageID = '$PackageID'"
 if (-NOT[string]::IsNullOrEmpty($TestPackageID)) {
-    $ProgramID = $TestPackageID.ProgramID
-    ([wmiclass]'ROOT\ccm\ClientSDK:CCM_ProgramsManager').ExecuteProgram($ProgramID,$PackageID)
+    $arguments = @{
+        'PackageID' = $PackageID
+        'ProgramID' = $TestPackageID.ProgramID
+    }
+    [cimclass]$CimClass = (Get-CimClass -Namespace 'Root\ccm\clientsdk' -ClassName 'CCM_ProgramsManager')
+    Invoke-CimMethod -CimClass $CimClass -MethodName 'ExecuteProgram' -Arguments $Arguments
     if (Test-Path -Path "$env:windir\CCM\ClientUX\SCClient.exe") { Start-Process -FilePath "$env:windir\CCM\ClientUX\SCClient.exe" -ArgumentList "SoftwareCenter:Page=OSD" -WindowStyle Maximized }
 }
 exit 0

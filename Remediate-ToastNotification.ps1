@@ -3,45 +3,25 @@
     Remediate-ToastNotification.ps1 - Toast Notification Script for Microsoft Intune
 
 .DESCRIPTION
-    This PowerShell script delivers native Windows toast notifications to end users through Microsoft Intune.
-    This version has been completely rewritten and streamlined specifically for Intune environments with enhanced 
-    international compatibility and intelligent scheduling capabilities.
-
+    Delivers native Windows toast notifications to end users through Microsoft Intune.
+    This is the next evolution of the popular Toast Notification Script, completely rewritten for Microsoft Intune.
+    
     Key Features:
-    • International Compatibility: Culture-independent operation using ISO 8601 numeric day format (1=Monday through 7=Sunday)
-    • Weekly Messaging: Flexible day/hour targeting with support for multiple days and "any time" scheduling
-    • Enhanced Logging System: Multi-level logging with rotation, IME integration, and fallback mechanisms
-    • Personalized User Experience: Dynamic time-based greetings with user's first name and comprehensive fallback chains
-    • Smart Duplicate Prevention: Time-based throttling and cross-session persistence
-    • Intune Optimization: Designed specifically for Microsoft Intune with meaningful exit codes
-
-    Supported Notification Types:
-    • Weekly Reminders: Scheduled notifications for routine communication and announcements
-    • Reboot Notifications: Uptime-based restart reminders for system maintenance
-    • General Announcements: Flexible messaging for various organizational scenarios
-    • Application Deployment: Integration with Company Portal for software deployment notifications
+    • Weekly reminders with flexible scheduling (multiple days, any hour support)
+    • Pending reboot notifications based on configurable uptime thresholds
+    • Personalized greetings with dynamic time-based salutations
+    • Enhanced logging with rotation and comprehensive error handling
+    • International compatibility with culture-independent operation
+    • PowerShell Constrained Language Mode compatibility
 
 .PARAMETER Config
-    Specifies the path or URL to the XML configuration file. Can be a local file path, UNC path, or HTTP/HTTPS URL.
-    Default: "https://krpublicfiles.blob.core.windows.net/toastnotification/config-toast.xml"
+    Path or URL to the XML configuration file.
+    Default: "https://toast.imab.dk/config-toast-pendingreboot.xml"
 
 .EXAMPLE
     .\Remediate-ToastNotification.ps1
-    Runs the script with the default configuration file hosted online.
-
-.EXAMPLE
-    .\Remediate-ToastNotification.ps1 -Config "C:\Config\custom-toast.xml"
-    Runs the script with a local configuration file.
-
-.EXAMPLE
-    .\Remediate-ToastNotification.ps1 -Config "https://company.blob.core.windows.net/config/toast-config.xml"
-    Runs the script with a custom configuration file hosted online.
-
-.INPUTS
-    None. This script does not accept pipeline input.
 
 .OUTPUTS
-    System.Int32
     Returns exit codes for Microsoft Intune reporting:
     • 0: Success - Toast notification displayed or conditions not met (no action needed)
     • 1: Configuration error or critical failure
@@ -64,19 +44,6 @@
     • Deploy with detection script: Detect-ToastNotification.ps1
     • Configure appropriate schedule based on notification requirements
     • Ensure proper user assignment and targeting
-    • Monitor execution through Intune reporting
-
-    International Compatibility:
-    • Uses numeric day format (1-7) instead of localized day names
-    • Supports multiple languages through XML configuration
-    • Culture-independent operation across all Windows language installations
-    • Fallback mechanisms for various regional settings
-
-    Security Considerations:
-    • Runs in user context for proper toast notification display
-    • Validates configuration sources and content
-    • Implements secure logging with appropriate permissions
-    • Supports HTTPS configuration sources for secure deployment
 
 .LINK
     https://www.imab.dk/windows-10-toast-notification-script/

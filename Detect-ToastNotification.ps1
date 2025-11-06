@@ -3,52 +3,14 @@
     Detect-ToastNotification.ps1 - Detection Script for Toast Notification Script for Microsoft Intune
 
 .DESCRIPTION
-    This PowerShell script serves as the detection component for Toast Notification Script in Microsoft Intune.
-    It evaluates various system conditions and configuration settings to determine whether toast notifications should be displayed
-    to end users, working in conjunction with Remediate-ToastNotification.ps1 to provide intelligent notification delivery.
-
-    Detection Capabilities:
-    • Pending Reboot Detection: Monitors system uptime against configurable thresholds
-    • Weekly Message Scheduling: Evaluates day/hour triggers for routine notifications using international-compatible numeric format
-    • Configuration Validation: Checks XML configuration integrity and feature enablement
-    • Conflict Detection: Identifies conflicting settings that could prevent proper notification delivery
-    • System Compatibility: Validates Windows version and environment requirements
-
-    International Compatibility:
-    • Uses ISO 8601 numeric day format (1=Monday through 7=Sunday) for culture-independent operation
-    • Eliminates localization issues found in earlier versions
-    • Supports all Windows language installations without modification
-    • Consistent behavior across international deployments
-
-    Detection Logic:
-    The script evaluates multiple conditions based on XML configuration:
-    1. Global Toast feature enablement check
-    2. Individual feature validation (WeeklyMessage, PendingRebootUptime)
-    3. System state evaluation (uptime, day/hour matching)
-    4. Configuration conflict detection
-    5. Exit code determination for Intune reporting
+    Detection script for Toast Notification Script in Microsoft Intune.
+    Detects if conditions are met for displaying the toast notification.
 
 .PARAMETER Config
-    Specifies the path or URL to the XML configuration file. Must match the configuration used by the Toast Notification Script.
-    Default: "https://krpublicfiles.blob.core.windows.net/toastnotification/config-toast.xml"
-
-.EXAMPLE
-    .\Detect-ToastNotification.ps1
-    Performs detection using the default configuration file with standard output.
-
-.EXAMPLE
-    .\Detect-ToastNotification.ps1 -Config "https://company.blob.core.windows.net/config/custom-toast.xml"
-    Performs detection using a custom configuration file hosted online.
-
-.EXAMPLE
-    $LASTEXITCODE = .\Detect-ToastNotification.ps1; if ($LASTEXITCODE -eq 1) { Write-Host "Toast notification needed" }
-    Demonstrates exit code evaluation for conditional processing.
-
-.INPUTS
-    None. This script does not accept pipeline input.
+    Path or URL to the XML configuration file.
+    Default: "https://toast.imab.dk/config-toast-pendingreboot.xml"
 
 .OUTPUTS
-    System.Int32
     Exit codes for Microsoft Intune detection:
     • 0: No action needed
       - All relevant features are disabled in configuration
@@ -72,28 +34,13 @@
     • Windows 10 version 1709 or later / Windows 11
     • PowerShell 5.1 or later
     • Microsoft Intune managed device
+    • User context execution (not SYSTEM)
     • Internet connectivity for online configuration files
-    • Same configuration file as Toast Notification Script
     
-    Intune Deployment Guidelines:
-    • Deploy as detection script in Microsoft Intune
-    • Pair with Remediate-ToastNotification.ps1 as the action script
-    • Configure appropriate detection schedule (e.g., hourly, daily)
-    • Ensure consistent configuration file usage between detection and action scripts
-    • Monitor detection results through Intune reporting dashboard
-
-    Detection Strategy:
-    • Fail-safe approach: defaults to "no action needed" on errors
-    • Comprehensive logging for troubleshooting detection issues
-    • Validates configuration before evaluating conditions
-    • Handles network connectivity issues gracefully
-    • Provides clear exit reasoning for administrative review
-
-    Performance Considerations:
-    • Lightweight operation suitable for frequent execution
-    • Minimal system impact during detection evaluation
-    • Efficient XML parsing and condition evaluation
-    • Quick exit on configuration errors or disabled features
+    Intune Deployment:
+    • Deploy as detection script with remediation script: Remediate-ToastNotification.ps1
+    • Configure appropriate schedule based on notification requirements
+    • Ensure proper user assignment and targeting
 
 .LINK
     https://www.imab.dk/windows-10-toast-notification-script/

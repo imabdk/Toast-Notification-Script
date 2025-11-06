@@ -8,8 +8,8 @@
 
 <table>
 <tr>
-<td><strong>Weekly Message Notification</strong><br><img src="Screenshots/toast-notification-script-weeklymessage.png" alt="Weekly Message" width="350" height="280"></td>
-<td><strong>Pending Reboot Notification</strong><br><img src="Screenshots/toast-notification-script-pendingreboot.png" alt="Pending Reboot" width="350" height="280"></td>
+<td><strong>Weekly Message Notification</strong><br><img src="Screenshots/toast-notification-script-weeklymessage.png" alt="Weekly Message" width="350" height="566"></td>
+<td><strong>Pending Reboot Notification</strong><br><img src="Screenshots/toast-notification-script-pendingreboot.png" alt="Pending Reboot" width="350" height="566"></td>
 </tr>
 </table>
 

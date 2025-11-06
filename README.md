@@ -88,8 +88,8 @@ For organizations still using **Configuration Manager (SCCM)**, the legacy versi
 #### Legacy Features (v2.3.0)
 - Custom notification app registration
 - Software Center integration
-- Traditional ConfigMgr deployment model
-- PowerShell app notifications
+- Integration to task sequences
+- Integration to applications and packages
 
 > ⚠️ **Note**: The legacy ConfigMgr version (2.x) is no longer actively developed. Organizations are encouraged to migrate to Microsoft Intune and use version 3.0.0 for additional features and ongoing support.
 
@@ -99,7 +99,6 @@ For organizations still using **Configuration Manager (SCCM)**, the legacy versi
 
 - 📝 **Blog**: [https://www.imab.dk/windows-10-toast-notification-script/](https://www.imab.dk/windows-10-toast-notification-script/)
 - 🐛 **Issues**: [GitHub Issues](https://github.com/imabdk/Toast-Notification-Script/issues)
-- 💬 **Discussions**: [GitHub Discussions](https://github.com/imabdk/Toast-Notification-Script/discussions)
 
 ---
 
@@ -116,5 +115,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - GitHub: [@imabdk](https://github.com/imabdk)
 
 ---
-
-*Version 3.0.0 - November 2025*

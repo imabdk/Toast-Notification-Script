@@ -7,9 +7,7 @@
 	<Option Name="WeeklyMessageDay" Value="4" /> <!-- Numeric day(s) when WeeklyMessage should trigger (1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday, 7=Sunday). Single day: 3 | Multiple days: 1,3,5 | All weekdays: 1,2,3,4,5 -->
 	<Option Name="WeeklyMessageHour" Value="-1" /> <!-- Hour when WeeklyMessage should trigger (-1=any hour during target day, 0-23=specific hour in 24-hour format) -->
 	<Option Name="PendingRebootUptimeText" Enabled="True" />	<!-- Adds an additional group to the toast with text about the uptime of the computer -->
-	<Option Name="LimitToastToRunEveryMinutes" Enabled="False" Value="5" /> <!-- Prevents the toast notification from being displayed again within the defined value (in minutes) -->
-	<Option Name="CustomNotificationApp" Enabled="True" Value="iMAB.DK NOTIFICATIONS"/>	<!-- The app in Windows doing the actual notification -->
-	<Option Name="UsePowershellApp" Enabled="False" />	<!-- The app in Windows doing the actual notification -->
+	<Option Name="CustomNotificationApp" Enabled="True" Value="iMAB.DK NOTIFICATIONS"/>	<!-- The app in Windows doing the actual notification. When enabled, uses custom app. When disabled, automatically defaults to PowerShell app for reliable notification delivery -->
 	<Option Name="LogoImageName" Value="https://toast.imab.dk/ToastLogoImageIMAB.png" />  <!-- File name of the image shown as logo in the toast notoification  -->
 	<Option Name="HeroImageName" Value="https://toast.imab.dk/ToastHeroImageIMAB.png" /> <!-- File name of the image shown in the top of the toast notification -->	
 	<Option Name="ActionButton1" Enabled="False" />	<!-- Enables or disables the action button. -->

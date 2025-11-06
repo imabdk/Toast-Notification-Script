@@ -1,18 +1,18 @@
-<#
+﻿<#
 .SYNOPSIS
     Remediate-ToastNotification.ps1 - Toast Notification Script for Microsoft Intune
 
 .DESCRIPTION
     Delivers native Windows toast notifications to end users through Microsoft Intune.
-    This is the next evolution of the popular Toast Notification Script, completely rewritten for Microsoft Intune.
-    
+    This is the Toast Notification Script, completely rewritten for Microsoft Intune.
+
     Key Features:
-    • Weekly reminders with flexible scheduling (multiple days, any hour support)
-    • Pending reboot notifications based on configurable uptime thresholds
-    • Personalized greetings with dynamic time-based salutations
-    • Multi-level logging with rotation and error handling
-    • International compatibility with culture-independent operation
-    • PowerShell Constrained Language Mode compatibility
+    â€¢ Weekly reminders with flexible scheduling (multiple days, any hour support)
+    â€¢ Pending reboot notifications based on configurable uptime thresholds
+    â€¢ Personalized greetings with dynamic time-based salutations
+    â€¢ Multi-level logging with rotation and error handling
+    â€¢ International compatibility with culture-independent operation
+    â€¢ PowerShell Constrained Language Mode compatibility
 
 .PARAMETER Config
     Path or URL to the XML configuration file.
@@ -23,8 +23,8 @@
 
 .OUTPUTS
     Returns exit codes for Microsoft Intune reporting:
-    • 0: Success - Toast notification displayed or conditions not met (no action needed)
-    • 1: Configuration error or critical failure
+    â€¢ 0: Success - Toast notification displayed or conditions not met (no action needed)
+    â€¢ 1: Configuration error or critical failure
 
 .NOTES
     Script Name    : Remediate-ToastNotification.ps1
@@ -32,18 +32,18 @@
     Author         : Martin Bengtsson, Rewritten for Microsoft Intune
     Created        : November 2025
     Updated        : November 2025
-    
+
     Requirements:
-    • Windows 10 version 1709 or later / Windows 11
-    • PowerShell 5.1 or later
-    • Microsoft Intune managed device
-    • User context execution (not SYSTEM)
-    • Internet connectivity for online configuration files
-    
+    â€¢ Windows 10 version 1709 or later / Windows 11
+    â€¢ PowerShell 5.1 or later
+    â€¢ Microsoft Intune managed device
+    â€¢ User context execution (not SYSTEM)
+    â€¢ Internet connectivity for online configuration files
+
     Intune Deployment:
-    • Deploy with detection script: Detect-ToastNotification.ps1
-    • Configure appropriate schedule based on notification requirements
-    • Ensure proper user assignment and targeting
+    â€¢ Deploy with detection script: Detect-ToastNotification.ps1
+    â€¢ Configure appropriate schedule based on notification requirements
+    â€¢ Ensure proper user assignment and targeting
 
 .LINK
     https://www.imab.dk/windows-10-toast-notification-script/
@@ -77,7 +77,7 @@ function Write-Log() {
         [Parameter(Mandatory=$false)]
         [switch]$IncludeIMEOutput
     )
-    
+
     Process {
         try {
             # Ensure log directory exists
@@ -95,7 +95,7 @@ function Write-Log() {
             # Check log file size and handle rotation
             $LogSize = 0
             $MaxLogSize = 5 # MB
-            
+
             if (Test-Path -Path $Path) {
                 try {
                     $LogSize = (Get-Item -Path $Path -ErrorAction Stop).Length / 1MB
@@ -128,7 +128,7 @@ function Write-Log() {
             $FormattedDate = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
             $ProcessId = $PID
             $Username = [Environment]::UserName
-            
+
             # Determine level text
             switch ($Level) {
                 'Error' { $LevelText = 'ERROR' }
@@ -154,24 +154,24 @@ function Write-Log() {
                     # Silent failure for event log as it's just a fallback
                 }
             }
-            
+
             # Write to console (optional)
             if (-not $NoConsoleOutput) {
                 # Set VerbosePreference temporarily to ensure output
                 $OriginalVerbosePreference = $VerbosePreference
                 try {
                     switch ($Level) {
-                        'Error' { 
-                            Write-Error $Message -ErrorAction SilentlyContinue 
+                        'Error' {
+                            Write-Error $Message -ErrorAction SilentlyContinue
                         }
-                        'Warn'  { 
-                            Write-Warning $Message 
+                        'Warn'  {
+                            Write-Warning $Message
                         }
-                        'Info'  { 
+                        'Info'  {
                             $VerbosePreference = 'Continue'
                             Write-Verbose $Message
                         }
-                        'Debug' { 
+                        'Debug' {
                             if ($DebugPreference -ne 'SilentlyContinue') {
                                 Write-Debug $Message
                             }
@@ -182,7 +182,7 @@ function Write-Log() {
                     $VerbosePreference = $OriginalVerbosePreference
                 }
             }
-            
+
             # Add IME logging if requested
             if ($IncludeIMEOutput) {
                 Write-Output "[ToastNotificationScript] $Message"
@@ -203,21 +203,21 @@ function Test-WeeklyMessageTrigger() {
         [Parameter(Mandatory=$true)]
         [int]$TargetHour
     )
-    
+
     $CurrentTime = Get-Date
     # Get numeric day of week (0=Sunday, 1=Monday, ..., 6=Saturday)
     $CurrentDayNumber = [int]$CurrentTime.DayOfWeek
     # Convert to ISO 8601 format (1=Monday, 7=Sunday) for consistency
     if ($CurrentDayNumber -eq 0) { $CurrentDayNumber = 7 } # Sunday: 0 -> 7
-    
+
     $CurrentHour = $CurrentTime.Hour
     $CurrentMinute = $CurrentTime.Minute
-    
+
     # Parse target days (support comma-separated numeric values)
     $TargetDayStrings = $TargetDay -split ',' | ForEach-Object { $_.Trim() }
     $TargetDays = @()
     $InvalidDays = @()
-    
+
     foreach ($DayString in $TargetDayStrings) {
         if ($DayString -match '^\d+$') {
             $DayNumber = [int]$DayString
@@ -230,23 +230,23 @@ function Test-WeeklyMessageTrigger() {
             $InvalidDays += $DayString
         }
     }
-    
+
     # Report invalid day numbers
     if ($InvalidDays.Count -gt 0) {
         Write-Log -Level Warn -Message "WeeklyMessage: Invalid day numbers found: $($InvalidDays -join ', '). Valid range: 1-7 (1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday, 7=Sunday)"
     }
-    
+
     # Skip if no valid days remain
     if ($TargetDays.Count -eq 0) {
         Write-Log -Level Warn -Message "WeeklyMessage: No valid target days configured - skipping trigger check"
         return $false
     }
-    
+
     # Convert day numbers to names for logging (always English for consistency)
     $DayNames = @('', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')
     $CurrentDayName = $DayNames[$CurrentDayNumber]
     $TargetDayNames = $TargetDays | ForEach-Object { $DayNames[$_] }
-    
+
     # Check if current day is in target days
     if ($TargetDays -contains $CurrentDayNumber) {
         # Check hour condition
@@ -284,27 +284,27 @@ function Get-DeviceUptime() {
 # This determines if the script is running on a supported Windows version
 function Get-WindowsVersion() {
     Write-Log -Message "Executing Get-WindowsVersion function"
-    
+
     try {
         # Get OS information using CIM
         $OS = Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction Stop
-        
+
         $OSVersion = $OS.Version
         $ProductType = $OS.ProductType
         $OSCaption = $OS.Caption
         $BuildNumber = $OS.BuildNumber
-        
+
         Write-Log -Message "Detected OS: $OSCaption (Version: $OSVersion, Build: $BuildNumber)"
-        
+
         # Only supports workstations (ProductType = 1)
         if ($ProductType -ne 1) {
             Write-Log -Level Error -Message "Unsupported OS type detected - only Windows 10/11 workstations are supported"
             return $false
         }
-        
+
         # Check if Windows 10 or later (version 10.0.x)
         if ($OSVersion -like "10.0.*") {
-            
+
             # Determine Windows version based on build number
             if ($BuildNumber -ge 22000) {
                 $WindowsVersion = "Windows 11"
@@ -316,7 +316,7 @@ function Get-WindowsVersion() {
                 $WindowsVersion = "Windows 10 (Unsupported Build)"
                 $MinBuildMet = $false
             }
-            
+
             if ($MinBuildMet) {
                 Write-Log -Message "Supported $WindowsVersion workstation detected (Build: $BuildNumber)"
                 return $true
@@ -324,13 +324,13 @@ function Get-WindowsVersion() {
                 Write-Log -Level Error -Message "Windows 10 build too old (Build: $BuildNumber) - minimum build 10240 required"
                 return $false
             }
-            
+
         } else {
             # Pre-Windows 10 versions
             Write-Log -Level Error -Message "Unsupported Windows version: $OSCaption (Version: $OSVersion)"
             return $false
         }
-        
+
     }
     catch {
         Write-Log -Level Error -Message "Failed to retrieve Windows version information: $_"
@@ -341,10 +341,10 @@ function Get-WindowsVersion() {
 # Create Get Given Name function
 function Get-GivenName() {
     Write-Log -Message "Executing Get-GivenName function"
-    
+
     # Try to get given name from environment variables first
     $GivenName = $null
-    
+
     # Method 1: Try from Windows environment
     try {
         $UserInfo = Get-CimInstance -ClassName Win32_ComputerSystem | Select-Object UserName
@@ -356,7 +356,7 @@ function Get-GivenName() {
     catch {
         Write-Log -Level Warn -Message "Could not retrieve user info from Win32_ComputerSystem: $_"
     }
-    
+
     # Method 2: Try from registry (most reliable approach)
     if ([string]::IsNullOrEmpty($GivenName)) {
         Write-Log -Message "Attempting to find given name from registry"
@@ -379,7 +379,6 @@ function Get-GivenName() {
     # Method 3: Try from user profile registry
     if ([string]::IsNullOrEmpty($GivenName)) {
         try {
-            $CurrentUser = [Environment]::UserName
             $UserRegKey = "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer"
             $UserInfo = Get-ItemProperty -Path $UserRegKey -Name "Logon User Name" -ErrorAction SilentlyContinue
             if ($UserInfo) {
@@ -414,10 +413,10 @@ function Get-GivenName() {
 # This tests if toast notifications are enabled in Windows
 function Test-WindowsPushNotificationsEnabled() {
     Write-Log -Message "Executing Test-WindowsPushNotificationsEnabled function"
-    
+
     try {
         $ToastEnabledKey = Get-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\PushNotifications" -Name "ToastEnabled" -ErrorAction SilentlyContinue
-        
+
         if ($ToastEnabledKey -and $ToastEnabledKey.ToastEnabled -eq 1) {
             Write-Log -Message "Toast notifications are enabled for logged on user"
             return $true
@@ -441,20 +440,20 @@ function Test-WindowsPushNotificationsEnabled() {
 # This attempts to re-enable toast notifications if disabled
 function Enable-WindowsPushNotifications() {
     Write-Log -Message "Attempting to enable toast notifications for the logged on user"
-    
+
     try {
         $ToastEnabledKeyPath = "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\PushNotifications"
-        
+
         # Ensure the registry path exists
         if (-not (Test-Path $ToastEnabledKeyPath)) {
             New-Item -Path $ToastEnabledKeyPath -Force | Out-Null
             Write-Log -Message "Successfully created PushNotifications registry path"
         }
-        
+
         # Enable toast notifications
         Set-ItemProperty -Path $ToastEnabledKeyPath -Name "ToastEnabled" -Value 1 -Force
         Write-Log -Message "Successfully set ToastEnabled registry value to 1"
-        
+
         # Try to restart the notification service (best effort)
         try {
             $NotificationService = Get-Service -Name "WpnUserService*" -ErrorAction SilentlyContinue
@@ -466,7 +465,7 @@ function Enable-WindowsPushNotifications() {
         catch {
             Write-Log -Level Warn -Message "Could not restart notification service: $_"
         }
-        
+
         Write-Log -Message "Successfully enabled toast notifications for the logged on user"
         return $true
     }
@@ -483,7 +482,7 @@ function Get-ToastConfig() {
         [Parameter(Mandatory=$true)]
         [string]$ConfigPath
     )
-    
+
     Write-Log -Message "Loading configuration file: $ConfigPath"
 
     if ($ConfigPath -match "^https?://") {
@@ -505,7 +504,7 @@ function Get-ToastConfig() {
     else {
         Write-Log -Message "Config file is local or on file share: $ConfigPath"
         if (Test-Path -Path $ConfigPath) {
-            try { 
+            try {
                 $Xml = [xml](Get-Content -Path $ConfigPath -Encoding UTF8)
                 Write-Log -Message "Successfully loaded local config file: $ConfigPath"
                 return $Xml
@@ -531,12 +530,12 @@ function Test-ConfigConflicts() {
         [Parameter(Mandatory=$true)]
         [xml]$ConfigXml
     )
-    
+
     Write-Log -Message "Executing Test-ConfigConflicts function"
-    
+
     $Conflicts = @()
     $Warnings = @()
-    
+
     # Check if Toast feature is globally disabled (should be first check)
     $ToastEnabled = ($ConfigXml.Configuration.Feature | Where-Object {$_.Name -eq "Toast"}).Enabled
     if ($ToastEnabled -ne "True") {
@@ -551,30 +550,25 @@ function Test-ConfigConflicts() {
             HasWarnings = $false
         }
     }
-    
+
     # Only check other conflicts if Toast is enabled
     # Check for multiple trigger features enabled simultaneously
     $PendingRebootUptimeEnabled = ($ConfigXml.Configuration.Feature | Where-Object {$_.Name -eq "PendingRebootUptime"}).Enabled
     $WeeklyMessageEnabled = ($ConfigXml.Configuration.Feature | Where-Object {$_.Name -eq "WeeklyMessage"}).Enabled
-    
+
     if ($PendingRebootUptimeEnabled -eq "True" -and $WeeklyMessageEnabled -eq "True") {
         $Conflicts += "Multiple trigger features enabled: PendingRebootUptime and WeeklyMessage both active - only one trigger feature should be enabled at a time"
     }
-    
-    # Check for notification app conflicts
-    $CustomApp = ($ConfigXml.Configuration.Option | Where-Object {$_.Name -eq "CustomNotificationApp"}).Enabled
-    $PowershellApp = ($ConfigXml.Configuration.Option | Where-Object {$_.Name -eq "UsePowershellApp"}).Enabled
-    
-    if ($CustomApp -eq "True" -and $PowershellApp -eq "True") {
-        $Warnings += "Notification app conflict: Both CustomNotificationApp and UsePowershellApp are enabled. CustomNotificationApp will take precedence."
-    }
-    
+
+    # Check for notification app conflicts - simplified since UsePowershellApp has been removed
+    # Note: UsePowershellApp option has been removed. PowerShell app is now the automatic fallback when CustomNotificationApp is disabled.
+
     # Check for button logic conflicts
     $SnoozeEnabled = ($ConfigXml.Configuration.Option | Where-Object {$_.Name -eq "SnoozeButton"}).Enabled
     $ActionButton1Enabled = ($ConfigXml.Configuration.Option | Where-Object {$_.Name -eq "ActionButton1"}).Enabled
     $ActionButton2Enabled = ($ConfigXml.Configuration.Option | Where-Object {$_.Name -eq "ActionButton2"}).Enabled
     $DismissEnabled = ($ConfigXml.Configuration.Option | Where-Object {$_.Name -eq "DismissButton"}).Enabled
-    
+
     if ($SnoozeEnabled -eq "True") {
         if ($ActionButton1Enabled -eq "False" -and $ActionButton2Enabled -eq "False") {
             $Warnings += "SnoozeButton is enabled but both ActionButtons are disabled. SnoozeButton will force ActionButton to be enabled."
@@ -583,18 +577,18 @@ function Test-ConfigConflicts() {
             $Warnings += "SnoozeButton is enabled but DismissButton is disabled. SnoozeButton will force DismissButton to be enabled."
         }
     }
-    
+
     # Check scenario vs feature compatibility
     $Scenario = ($ConfigXml.Configuration.Option | Where-Object {$_.Name -eq "Scenario"}).Type
-    
+
     if ($Scenario -eq "alarm" -and $SnoozeEnabled -ne "True") {
         $Warnings += "Scenario is set to 'alarm' but SnoozeButton is disabled. Alarm scenarios typically work better with snooze functionality."
     }
-    
+
     if ($Scenario -eq "long" -and $ActionButton1Enabled -ne "True" -and $ActionButton2Enabled -ne "True") {
         $Warnings += "Scenario is set to 'long' but no ActionButtons are enabled. Long scenarios typically include action buttons for user interaction."
     }
-    
+
     # Check uptime threshold validity
     if ($PendingRebootUptimeEnabled -eq "True") {
         $MaxUptimeDays = ($ConfigXml.Configuration.Option | Where-Object {$_.Name -eq "MaxUptimeDays"}).Value
@@ -602,7 +596,7 @@ function Test-ConfigConflicts() {
             $Warnings += "MaxUptimeDays is set to negative value ($MaxUptimeDays). This may cause unexpected behavior."
         }
     }
-    
+
     # Log findings
     if ($Conflicts.Count -gt 0) {
         Write-Log -Level Error -Message "Configuration conflicts detected:"
@@ -610,18 +604,18 @@ function Test-ConfigConflicts() {
             Write-Log -Level Error -Message "  - $Conflict"
         }
     }
-    
+
     if ($Warnings.Count -gt 0) {
         Write-Log -Level Warn -Message "Configuration warnings detected:"
         foreach ($Warning in $Warnings) {
             Write-Log -Level Warn -Message "  - $Warning"
         }
     }
-    
+
     if ($Conflicts.Count -eq 0 -and $Warnings.Count -eq 0) {
         Write-Log -Message "Configuration validation passed - no conflicts detected"
     }
-    
+
     return @{
         Conflicts = $Conflicts
         Warnings = $Warnings
@@ -630,8 +624,8 @@ function Test-ConfigConflicts() {
     }
 }
 
-# Create Build-ToastXml function
-function Build-ToastXml() {
+# Create New-ToastXml function
+function New-ToastXml() {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory=$false)]
@@ -664,12 +658,12 @@ function Build-ToastXml() {
             </subgroup>
         </group>
         <group>
-            <subgroup>     
+            <subgroup>
                 <text hint-style="body" hint-wrap="true">$(if ($IsWeeklyMessage -and -NOT[string]::IsNullOrEmpty($WeeklyMessageBodyText)) { $WeeklyMessageBodyText } else { $BodyText1 })</text>
             </subgroup>
         </group>
         <group>
-            <subgroup>     
+            <subgroup>
                 <text hint-style="body" hint-wrap="true">$(if ($IsWeeklyMessage) { "" } else { $BodyText2 })</text>
             </subgroup>
         </group>
@@ -679,7 +673,7 @@ function Build-ToastXml() {
     if ($IncludeUptimeInfo) {
         $VisualXml += @"
         <group>
-            <subgroup>     
+            <subgroup>
                 <text hint-style="body" hint-wrap="true" >$PendingRebootUptimeTextValue</text>
             </subgroup>
         </group>
@@ -699,7 +693,7 @@ function Build-ToastXml() {
 
     # Build the actions section dynamically
     $ActionsContent = ""
-    
+
     if ($IncludeSnoozeButton) {
         # Snooze button takes priority and includes specific input controls
         $ActionsContent = @"
@@ -740,8 +734,8 @@ $ActionsContent
     return [xml]$CompleteXml
 }
 
-# Create Download-ToastImage function  
-function Download-ToastImage() {
+# Create Get-ToastImage function
+function Get-ToastImage() {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory=$true)]
@@ -751,9 +745,9 @@ function Download-ToastImage() {
         [Parameter(Mandatory=$true)]
         [string]$ImageType
     )
-    
+
     Write-Log -Message "Toast$ImageType appears to be hosted online. Downloading from: $ImageUrl"
-    
+
     try {
         Invoke-WebRequest -Uri $ImageUrl -OutFile $LocalPath -UseBasicParsing
         Write-Log -Message "Successfully downloaded $ImageType from $ImageUrl to $LocalPath"
@@ -766,22 +760,47 @@ function Download-ToastImage() {
     }
 }
 
-# Create Display-ToastNotification function
-function Display-ToastNotification() {
+# Create Show-ToastNotification function
+function Show-ToastNotification() {
     try {
-        # Ensure $App variable is defined
-        if ([string]::IsNullOrEmpty($App)) {
-            if ($CustomAppEnabled -eq "True") {
-                $App = "Toast.Custom.App"
-            } else {
-                $App = "Microsoft.SoftwareCenter.DesktopToasts"
+        # Determine which app to use for the notification
+        if ($CustomAppEnabled -eq "True") {
+            $App = "Toast.Custom.App"
+            Write-Log -Message "Using custom notification app: $App"
+            
+            # Setup custom app registry entries
+            $RegPath = "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Notifications\Settings"
+            if (-NOT(Test-Path -Path "$RegPath\$App")) {
+                New-Item -Path "$RegPath\$App" -Force | Out-Null
+                New-ItemProperty -Path "$RegPath\$App" -Name "ShowInActionCenter" -Value 0 -PropertyType "DWORD" | Out-Null
+                New-ItemProperty -Path "$RegPath\$App" -Name "Enabled" -Value 1 -PropertyType "DWORD" -Force | Out-Null
+                New-ItemProperty -Path "$RegPath\$App" -Name "SoundFile" -PropertyType "STRING" -Force | Out-Null
             }
-            Write-Log -Message "App variable set to: $App"
+            # Ensure custom app is enabled
+            if ((Get-ItemProperty -Path "$RegPath\$App" -Name "Enabled" -ErrorAction SilentlyContinue).Enabled -ne "1") {
+                New-ItemProperty -Path "$RegPath\$App" -Name "Enabled" -Value 1 -PropertyType "DWORD" -Force | Out-Null
+            }
+        } else {
+            $App = "{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\WindowsPowerShell\v1.0\powershell.exe"
+            Write-Log -Message "Using PowerShell app as fallback: $App"
+            
+            # Setup PowerShell app registry entries
+            $RegPath = "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Notifications\Settings"
+            if (-NOT(Test-Path -Path "$RegPath\$App")) {
+                New-Item -Path "$RegPath\$App" -Force | Out-Null
+                New-ItemProperty -Path "$RegPath\$App" -Name "ShowInActionCenter" -Value 1 -PropertyType "DWORD" | Out-Null
+                New-ItemProperty -Path "$RegPath\$App" -Name "Enabled" -Value 1 -PropertyType "DWORD" -Force | Out-Null
+                New-ItemProperty -Path "$RegPath\$App" -Name "SoundFile" -PropertyType "STRING" -Force | Out-Null
+            }
+            # Ensure PowerShell app is enabled
+            if ((Get-ItemProperty -Path "$RegPath\$App" -Name "Enabled" -ErrorAction SilentlyContinue).Enabled -ne "1") {
+                New-ItemProperty -Path "$RegPath\$App" -Name "Enabled" -Value 1 -PropertyType "DWORD" -Force | Out-Null
+            }
         }
-        
+
         # Load WinRT assemblies for toast notifications
-        $Load = [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime]
-        $Load = [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime]
+        [void][Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime]
+        [void][Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime]
         # Load the notification into the required format
         $ToastXml = New-Object -TypeName Windows.Data.Xml.Dom.XmlDocument
         $ToastXml.LoadXml($Toast.OuterXml)
@@ -792,11 +811,11 @@ function Display-ToastNotification() {
         Save-NotificationLastRunTime
         Exit 0
     }
-    catch { 
+    catch {
         Write-Log -Message "Failed to display toast notification" -Level Error -IncludeIMEOutput
         Write-Log -Message "Error details: $_" -Level Error
         Write-Log -Message "Make sure the script is running as the logged on user" -Level Error
-        Exit 1 
+        Exit 1
     }
 }
 # Create Register-NotificationApp function
@@ -816,19 +835,19 @@ function Register-CustomNotificationApp($fAppID,$fAppDisplayName) {
         if (-NOT(Test-Path $RegPath)) {
             New-Item -Path $AppRegPath -Name $AppID -Force | Out-Null
         }
-        $DisplayName = Get-ItemProperty -Path $RegPath -Name DisplayName -ErrorAction SilentlyContinue | Select -ExpandProperty DisplayName -ErrorAction SilentlyContinue
+        $DisplayName = Get-ItemProperty -Path $RegPath -Name DisplayName -ErrorAction SilentlyContinue | Select-Object -ExpandProperty DisplayName -ErrorAction SilentlyContinue
         if ($DisplayName -ne $AppDisplayName) {
             New-ItemProperty -Path $RegPath -Name DisplayName -Value $AppDisplayName -PropertyType String -Force | Out-Null
         }
-        $ShowInSettingsValue = Get-ItemProperty -Path $RegPath -Name ShowInSettings -ErrorAction SilentlyContinue | Select -ExpandProperty ShowInSettings -ErrorAction SilentlyContinue
+        $ShowInSettingsValue = Get-ItemProperty -Path $RegPath -Name ShowInSettings -ErrorAction SilentlyContinue | Select-Object -ExpandProperty ShowInSettings -ErrorAction SilentlyContinue
         if ($ShowInSettingsValue -ne $ShowInSettings) {
             New-ItemProperty -Path $RegPath -Name ShowInSettings -Value $ShowInSettings -PropertyType DWORD -Force | Out-Null
         }
-        $IconUriValue = Get-ItemProperty -Path $RegPath -Name IconUri -ErrorAction SilentlyContinue | Select -ExpandProperty IconUri -ErrorAction SilentlyContinue
+        $IconUriValue = Get-ItemProperty -Path $RegPath -Name IconUri -ErrorAction SilentlyContinue | Select-Object -ExpandProperty IconUri -ErrorAction SilentlyContinue
         if ($IconUriValue -ne $IconUri) {
             New-ItemProperty -Path $RegPath -Name IconUri -Value $IconUri -PropertyType ExpandString -Force | Out-Null
         }
-        $IconBackgroundColorValue = Get-ItemProperty -Path $RegPath -Name IconBackgroundColor -ErrorAction SilentlyContinue | Select -ExpandProperty IconBackgroundColor -ErrorAction SilentlyContinue
+        $IconBackgroundColorValue = Get-ItemProperty -Path $RegPath -Name IconBackgroundColor -ErrorAction SilentlyContinue | Select-Object -ExpandProperty IconBackgroundColor -ErrorAction SilentlyContinue
         if ($IconBackgroundColorValue -ne $IconBackgroundColor) {
             New-ItemProperty -Path $RegPath -Name IconBackgroundColor -Value $IconBackgroundColor -PropertyType ExpandString -Force | Out-Null
         }
@@ -845,21 +864,21 @@ function Get-NotificationLastRunTime() {
     $LastRunTime = (Get-ItemProperty $global:RegistryPath -Name LastRunTime -ErrorAction Ignore).LastRunTime
     $CurrentTime = Get-Date -Format s
     if (-NOT[string]::IsNullOrEmpty($LastRunTime)) {
-        $Difference = ([datetime]$CurrentTime - ([datetime]$LastRunTime)) 
+        $Difference = ([datetime]$CurrentTime - ([datetime]$LastRunTime))
         $MinutesSinceLastRunTime = [math]::Round($Difference.TotalMinutes)
         Write-Log -Message "Toast notification was previously displayed $MinutesSinceLastRunTime minutes ago"
         $MinutesSinceLastRunTime
     }
 }
 
-# Create function to store the timestamp of the notification execution  
+# Create function to store the timestamp of the notification execution
 function Save-NotificationLastRunTime() {
     try {
         if (-NOT(Test-Path -Path $global:RegistryPath)) {
             New-Item -Path $global:RegistryPath -Force | Out-Null
             Write-Log -Message "Successfully created registry path: $global:RegistryPath"
         }
-        
+
         $CurrentTime = Get-Date -Format s
         Set-ItemProperty -Path $global:RegistryPath -Name "LastRunTime" -Value $CurrentTime -Force
     }
@@ -892,7 +911,7 @@ if (-NOT(Test-Path -Path $global:RegistryPath)) {
     try {
         New-Item -Path $global:RegistryPath -Force | Out-Null
     }
-    catch { 
+    catch {
         Write-Log -Message "Failed to create the ToastNotificationScript registry path: $global:RegistryPath" -Level Error
         Write-Log -Message "This is required. Script will now exit" -Level Error
         Exit 1
@@ -920,7 +939,7 @@ $WindowsPushNotificationsEnabled = Test-WindowsPushNotificationsEnabled
 if ($WindowsPushNotificationsEnabled -eq $False) {
     Enable-WindowsPushNotifications
 }
-# If no config file is set as parameter, use the default. 
+# If no config file is set as parameter, use the default.
 # Default is executing directory. In this case, the config-toast.xml must exist in same directory as the Remediate-ToastNotification.ps1 file
 if (-NOT($Config)) {
     Write-Log -Message "No config file set as parameter. Using local config file"
@@ -953,25 +972,21 @@ if ($ConflictResults.HasWarnings) {
 if(-NOT[string]::IsNullOrEmpty($Xml)) {
     try {
         Write-Log -Message "Loading xml content from $Config into variables"
-        # Load Toast Notification features 
+        # Load Toast Notification features
         $ToastEnabled = $Xml.Configuration.Feature | Where-Object {$_.Name -like 'Toast'} | Select-Object -ExpandProperty 'Enabled'
         $PendingRebootUptimeEnabled = $Xml.Configuration.Feature | Where-Object {$_.Name -like 'PendingRebootUptime'} | Select-Object -ExpandProperty 'Enabled'
         $WeeklyMessageEnabled = $Xml.Configuration.Feature | Where-Object {$_.Name -like 'WeeklyMessage'} | Select-Object -ExpandProperty 'Enabled'
-        # Load Toast Notification options   
+        # Load Toast Notification options
         $PendingRebootUptimeTextEnabled = $Xml.Configuration.Option | Where-Object {$_.Name -like 'PendingRebootUptimeText'} | Select-Object -ExpandProperty 'Enabled'
         $MaxUptimeDays = $Xml.Configuration.Option | Where-Object {$_.Name -like 'MaxUptimeDays'} | Select-Object -ExpandProperty 'Value'
         $WeeklyMessageDay = $Xml.Configuration.Option | Where-Object {$_.Name -like 'WeeklyMessageDay'} | Select-Object -ExpandProperty 'Value'
         $WeeklyMessageHour = $Xml.Configuration.Option | Where-Object {$_.Name -like 'WeeklyMessageHour'} | Select-Object -ExpandProperty 'Value'
-        $LimitToastToRunEveryMinutesEnabled = $Xml.Configuration.Option | Where-Object {$_.Name -like 'LimitToastToRunEveryMinutes'} | Select-Object -ExpandProperty 'Enabled'
-        $LimitToastToRunEveryMinutesValue = $Xml.Configuration.Option | Where-Object {$_.Name -like 'LimitToastToRunEveryMinutes'} | Select-Object -ExpandProperty 'Value'
         # Custom app doing the notification
         $CustomAppEnabled = $Xml.Configuration.Option | Where-Object {$_.Name -like 'CustomNotificationApp'} | Select-Object -ExpandProperty 'Enabled'
         $CustomAppValue = $Xml.Configuration.Option | Where-Object {$_.Name -like 'CustomNotificationApp'} | Select-Object -ExpandProperty 'Value'
-        $PSAppName = $Xml.Configuration.Option | Where-Object {$_.Name -like 'UsePowershellApp'} | Select-Object -ExpandProperty 'Name'
-        $PSAppStatus = $Xml.Configuration.Option | Where-Object {$_.Name -like 'UsePowershellApp'} | Select-Object -ExpandProperty 'Enabled'
         $LogoImageFileName = $Xml.Configuration.Option | Where-Object {$_.Name -like 'LogoImageName'} | Select-Object -ExpandProperty 'Value'
         $HeroImageFileName = $Xml.Configuration.Option | Where-Object {$_.Name -like 'HeroImageName'} | Select-Object -ExpandProperty 'Value'
-        # Rewriting image variables to cater for images being hosted online, as well as being hosted locally. 
+        # Rewriting image variables to cater for images being hosted online, as well as being hosted locally.
         # Needed image including path in one variable
         if ((-NOT[string]::IsNullOrEmpty($LogoImageFileName)) -OR (-NOT[string]::IsNullOrEmpty($HeroImageFileName)))  {
             $LogoImage = $ImagesPath + "/" + $LogoImageFileName
@@ -1031,7 +1046,7 @@ if(-NOT[string]::IsNullOrEmpty($Xml)) {
         $HoursText = $XmlLang.Text | Where-Object {$_.Name -like 'HoursText'} | Select-Object -ExpandProperty '#text'
 	    $ComputerUptimeText = $XmlLang.Text | Where-Object {$_.Name -like 'ComputerUptimeText'} | Select-Object -ExpandProperty '#text'
         $ComputerUptimeDaysText = $XmlLang.Text | Where-Object {$_.Name -like 'ComputerUptimeDaysText'} | Select-Object -ExpandProperty '#text'
-        Write-Log -Message "Successfully loaded xml content from $Config"     
+        Write-Log -Message "Successfully loaded xml content from $Config"
     }
     catch {
         Write-Log -Message "Xml content from $Config was not loaded properly"
@@ -1041,19 +1056,18 @@ if(-NOT[string]::IsNullOrEmpty($Xml)) {
 
 if ($CustomAppEnabled -eq "True") {
     # Hardcoding the AppID. Only the display name is interesting, thus this comes from the config.xml
-    $App = "Toast.Custom.App"
-    Register-CustomNotificationApp -fAppID $App -fAppDisplayName $CustomAppValue
+    Register-CustomNotificationApp -fAppID "Toast.Custom.App" -fAppDisplayName $CustomAppValue
 }
 # Downloading images into user's temp folder if images are hosted online
 if ($LogoImageFileName -match "^https?://") {
-    $DownloadedLogoPath = Download-ToastImage -ImageUrl $LogoImageFileName -LocalPath $LogoImageTemp -ImageType "LogoImage"
+    $DownloadedLogoPath = Get-ToastImage -ImageUrl $LogoImageFileName -LocalPath $LogoImageTemp -ImageType "LogoImage"
     if ($DownloadedLogoPath) {
         $LogoImage = $DownloadedLogoPath
     }
 }
 
 if ($HeroImageFileName -match "^https?://") {
-    $DownloadedHeroPath = Download-ToastImage -ImageUrl $HeroImageFileName -LocalPath $HeroImageTemp -ImageType "HeroImage"
+    $DownloadedHeroPath = Get-ToastImage -ImageUrl $HeroImageFileName -LocalPath $HeroImageTemp -ImageType "HeroImage"
     if ($DownloadedHeroPath) {
         $HeroImage = $DownloadedHeroPath
     }
@@ -1067,37 +1081,16 @@ if ($PendingRebootUptimeEnabled -eq "True") {
 # Check for WeeklyMessage scenario
 if ($WeeklyMessageEnabled -eq "True") {
     Write-Log -Message "WeeklyMessage feature is enabled, checking trigger conditions"
-    
+
     if (Test-WeeklyMessageTrigger -TargetDay $WeeklyMessageDay -TargetHour ([int]$WeeklyMessageHour)) {
         # Set a flag for WeeklyMessage detection
         $WeeklyMessageTriggered = $true
     }
 }
-# Check for required entries in registry for when using Custom App as application for the toast
-if ($CustomAppEnabled -eq "True") {
-    # Path to the notification app doing the actual toast
-    $RegPath = "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Notifications\Settings"
-    # For clarity, declaring the App variables once again
-    $App =  "Toast.Custom.App"
-    # Creating registry entries if they don't exists
-    if (-NOT(Test-Path -Path $RegPath\$App)) {
-        New-Item -Path $RegPath\$App -Force
-        New-ItemProperty -Path $RegPath\$App -Name "ShowInActionCenter" -Value 0 -PropertyType "DWORD"
-        New-ItemProperty -Path $RegPath\$App -Name "Enabled" -Value 1 -PropertyType "DWORD" -Force
-        New-ItemProperty -Path $RegPath\$App -Name "SoundFile" -PropertyType "STRING" -Force
-    }
-    # Make sure the app used with the action center is enabled
-    if ((Get-ItemProperty -Path $RegPath\$App -Name "Enabled" -ErrorAction SilentlyContinue).Enabled -ne "1") {
-        New-ItemProperty -Path $RegPath\$App -Name "Enabled" -Value 1 -PropertyType "DWORD" -Force
-    }    
-    if ((Get-ItemProperty -Path $RegPath\$App -Name "ShowInActionCenter" -ErrorAction SilentlyContinue).ShowInActionCenter -ne "0") {
-        New-ItemProperty -Path $RegPath\$App -Name "ShowInActionCenter" -Value 0 -PropertyType "DWORD" -Force
-    }
-    # Added to not play any sounds when notification is displayed with scenario: alarm
-    if (-NOT(Get-ItemProperty -Path $RegPath\$App -Name "SoundFile" -ErrorAction SilentlyContinue)) {
-        New-ItemProperty -Path $RegPath\$App -Name "SoundFile" -PropertyType "STRING" -Force
-    }
-}
+# Registry setup for notification apps is now handled in Show-ToastNotification function when the app is determined
+
+# PowerShell app registry setup is now handled automatically in Show-ToastNotification function when needed
+
 # Building personalized greeting with given name
 Write-Log -Message "Building personalized greeting with given name"
 $Hour = (Get-Date).TimeOfDay.Hours
@@ -1127,17 +1120,17 @@ if ($IncludeUptime) {
 # Determine which buttons to include based on configuration
 if ($SnoozeButtonEnabled -eq "True") {
     Write-Log -Message "Creating toast with snooze button (includes action button and dismiss button)"
-    $Toast = Build-ToastXml -IncludeSnoozeButton $true -IncludeUptimeInfo $IncludeUptime -UptimeDays $Uptime -IsWeeklyMessage ($WeeklyMessageTriggered -eq $true)
+    $Toast = New-ToastXml -IncludeSnoozeButton $true -IncludeUptimeInfo $IncludeUptime -UptimeDays $Uptime -IsWeeklyMessage ($WeeklyMessageTriggered -eq $true)
 }
 elseif ($ActionButton2Enabled -eq "True") {
     Write-Log -Message "Creating toast with both action buttons and dismiss button"
-    $Toast = Build-ToastXml -IncludeActionButton1 $true -IncludeActionButton2 $true -IncludeDismissButton $true -IncludeUptimeInfo $IncludeUptime -UptimeDays $Uptime -IsWeeklyMessage ($WeeklyMessageTriggered -eq $true)
+    $Toast = New-ToastXml -IncludeActionButton1 $true -IncludeActionButton2 $true -IncludeDismissButton $true -IncludeUptimeInfo $IncludeUptime -UptimeDays $Uptime -IsWeeklyMessage ($WeeklyMessageTriggered -eq $true)
 }
 else {
     # Standard button combinations
     $IncludeAction1 = ($ActionButton1Enabled -eq "True")
     $IncludeDismiss = ($DismissButtonEnabled -eq "True")
-    
+
     if ($IncludeAction1 -and $IncludeDismiss) {
         Write-Log -Message "Creating toast with action button and dismiss button"
     }
@@ -1150,15 +1143,15 @@ else {
     else {
         Write-Log -Message "Creating toast with no action buttons"
     }
-    
-    $Toast = Build-ToastXml -IncludeActionButton1 $IncludeAction1 -IncludeDismissButton $IncludeDismiss -IncludeUptimeInfo $IncludeUptime -UptimeDays $Uptime -IsWeeklyMessage ($WeeklyMessageTriggered -eq $true)
+
+    $Toast = New-ToastXml -IncludeActionButton1 $IncludeAction1 -IncludeDismissButton $IncludeDismiss -IncludeUptimeInfo $IncludeUptime -UptimeDays $Uptime -IsWeeklyMessage ($WeeklyMessageTriggered -eq $true)
 }
 
 # Running the Display-notification function depending on selections and variables
 # Toast used for WeeklyMessage
 if ($WeeklyMessageEnabled -eq "True" -AND $WeeklyMessageTriggered -eq $true) {
     Write-Log -Message "Displaying WeeklyMessage toast notification for $WeeklyMessageDay at $WeeklyMessageHour`:00"
-    Display-ToastNotification
+    Show-ToastNotification
     # Stopping script. No need to accidentally run further toasts
     break
 }
@@ -1166,7 +1159,7 @@ if ($WeeklyMessageEnabled -eq "True" -AND $WeeklyMessageTriggered -eq $true) {
 # Toast used for PendingReboot check and considering OS uptime
 if (($PendingRebootUptimeEnabled -eq "True") -AND ($Uptime -gt $MaxUptimeDays)) {
     Write-Log -Message "Toast notification is used in regards to pending reboot. Uptime count is greater than $MaxUptimeDays"
-    Display-ToastNotification
+    Show-ToastNotification
     # Stopping script. No need to accidently run further toasts
     break
 }
@@ -1174,7 +1167,7 @@ if (($PendingRebootUptimeEnabled -eq "True") -AND ($Uptime -gt $MaxUptimeDays)) 
 # Display default toast if both trigger features are disabled
 if (($WeeklyMessageEnabled -ne "True") -AND ($PendingRebootUptimeEnabled -ne "True")) {
     Write-Log -Message "Both WeeklyMessage and PendingRebootUptimeEnabled features are disabled. Displaying default toast notification"
-    Display-ToastNotification
+    Show-ToastNotification
     # Stopping script. No need to accidentally run further toasts
     break
 }

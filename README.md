@@ -13,7 +13,8 @@
 **For Microsoft Intune (Recommended):**
 - [Remediate-ToastNotification.ps1](Remediate-ToastNotification.ps1) - Main script for toast notification delivery
 - [Detect-ToastNotification.ps1](Detect-ToastNotification.ps1) - Detection script for Intune deployment
-- [config-toast.xml](config-toast.xml) - Configuration file
+- [config-toast-weeklymessage.xml](config-toast-weeklymessage.xml) - Configuration example for weekly messages
+- [config-toast-pendingreboot.xml](config-toast-pendingreboot.xml) - Configuration example for pending reboot notifications
 
 ### Documentation & Support
 
@@ -61,6 +62,10 @@ The Toast Notification Script has been completely rewritten for **Microsoft Intu
    - **Remediation Script**: `Remediate-ToastNotification.ps1`
    - **Schedule**: Configure based on your notification requirements
 
+### Intune Configuration
+
+![Intune Remediation Configuration](Screenshots/intune-remediation-config-example.png)
+
 ### International Support
 
 Version 3.0.0 includes enhanced international compatibility:
@@ -83,7 +88,6 @@ The `config-toast.xml` file supports:
 ### What's New in 3.0.0
 
 - **Complete Rewrite**: Built from ground up for Microsoft Intune
-- **International Compatibility**: ISO 8601 numeric day format eliminates localization issues
 - **Enhanced Scheduling**: Support for multiple days and flexible hour targeting
 - **Improved Logging**: Advanced logging with rotation and IME integration
 - **Smart Detection**: Intelligent detection script for proper Intune workflow

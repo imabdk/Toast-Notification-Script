@@ -4,6 +4,16 @@
 
 🚀 **NEW:** Version 3.0.0 has been completely rewritten specifically for **Microsoft Intune and the remediations feature**.
 
+### Screenshots
+
+#### Toast Notification Examples
+
+**Weekly Message Notification:**
+![Weekly Message](Screenshots/toast-notification-script-weeklymessage.png)
+
+**Pending Reboot Notification:**
+![Pending Reboot](Screenshots/toast-notification-script-pendingreboot.png)
+
 ### Quick Download
 
 **For Microsoft Intune (Recommended):**
@@ -56,26 +66,6 @@ The Toast Notification Script has been completely rewritten for **Microsoft Intu
    - **Detection Script**: `Detect-ToastNotification.ps1`
    - **Remediation Script**: `Remediate-ToastNotification.ps1`
    - **Schedule**: Configure based on your notification requirements
-
-### Screenshots
-
-#### Toast Notification Examples
-
-**Weekly Reminder Notification:**
-<!-- Add screenshot of weekly reminder toast -->
-![Weekly Reminder](screenshots/weekly-reminder-toast.png)
-
-**Pending Reboot Notification:**
-<!-- Add screenshot of pending reboot toast -->
-![Pending Reboot](screenshots/pending-reboot-toast.png)
-
-**Intune Deployment Configuration:**
-<!-- Add screenshot of Intune remediation configuration -->
-![Intune Configuration](screenshots/intune-remediation-config.png)
-
-**Configuration File (XML):**
-<!-- Add screenshot of config XML structure -->
-![Config XML](screenshots/config-xml-example.png)
 
 ### International Support
 

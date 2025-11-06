@@ -10,7 +10,7 @@
     • Weekly reminders with flexible scheduling (multiple days, any hour support)
     • Pending reboot notifications based on configurable uptime thresholds
     • Personalized greetings with dynamic time-based salutations
-    • Enhanced logging with rotation and comprehensive error handling
+    • Multi-level logging with rotation and error handling
     • International compatibility with culture-independent operation
     • PowerShell Constrained Language Mode compatibility
 
@@ -137,7 +137,7 @@ function Write-Log() {
                 'Debug' { $LevelText = 'DEBUG' }
             }
 
-            # Create enhanced log entry
+            # Create log entry
             $LogEntry = "$FormattedDate [$LevelText] [PID:$ProcessId] [User:$Username] $Message"
 
             # Write to log file first (most important)
@@ -524,7 +524,7 @@ function Get-ToastConfig() {
     }
 }
 
-# Function to check for comprehensive configuration conflicts
+# Function to check for configuration conflicts
 function Test-ConfigConflicts() {
     [CmdletBinding()]
     param(

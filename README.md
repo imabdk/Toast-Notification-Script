@@ -1,14 +1,13 @@
 # Toast Notification Script
 
-## Current Version: 3.0.0 (Microsoft Intune)
+## Current Version: 3.0.0
 
-🚀 **NEW:** Version 3.0.0 has been completely rewritten specifically for **Microsoft Intune and the remediations feature**.
+🚀 **NEW:** Version 3.0.0 has been completely rewritten specifically for **Microsoft Intune** and the **Remediations** feature.
 
 ![Toast Notification Script Examples](Screenshots/toast-notification-script.png)
 
 ### Quick Download
 
-**For Microsoft Intune (Recommended):**
 - [Remediate-ToastNotification.ps1](Remediate-ToastNotification.ps1) - Main script for toast notification delivery
 - [Detect-ToastNotification.ps1](Detect-ToastNotification.ps1) - Detection script for Intune deployment
 - [config-toast-weeklymessage.xml](config-toast-weeklymessage.xml) - Configuration example for weekly messages
@@ -18,23 +17,24 @@
 
 📖 **Documentation:** [https://www.imab.dk/windows-10-toast-notification-script/](https://www.imab.dk/windows-10-toast-notification-script/)
 
-❓ **Questions & Issues:** Please visit the blog post above for comprehensive documentation and support.
+❓ **Questions & Issues:** Please visit the blog post above for documentation and support.
 
 ---
 
-## Version 3.0.0 - Microsoft Intune Edition
+## Version 3.0.0 Overview
 
-### Overview
+The Toast Notification Script has been completely rewritten to provide native Windows toast notifications through Microsoft Intune's Remediations feature.
 
-The Toast Notification Script has been completely rewritten for **Microsoft Intune** to provide native Windows toast notifications to end users. This version is specifically optimized for Intune's remediation workflow with enhanced international compatibility and intelligent scheduling.
+### Key Features & What's New
 
-### Key Features
-
-- ✅ **Microsoft Intune Optimized**: Designed specifically for Intune remediation deployment with proper exit codes
-- 📅 **Weekly Messaging**: Flexible day/hour targeting with support for multiple days and "any time" scheduling
-- 📊 **Enhanced Logging**: Multi-level logging with rotation, IME integration, and fallback mechanisms
-- 👤 **Personalized Experience**: Dynamic time-based greetings with user's first name and comprehensive fallback chains
+- ✅ **Microsoft Intune Ready**: Built with proper exit codes and Remediations workflow integration
+- 📅 **Flexible Scheduling**: Day/hour targeting with support for multiple days and "any time" scheduling
+- 📊 **Multi-Level Logging**: Logging with rotation, IME integration, and fallback mechanisms
+- 👤 **Personalized Experience**: Dynamic time-based greetings with user's first name and fallback chains
 - 🎯 **Multiple Notification Types**: Weekly reminders, reboot notifications, general announcements
+- 🔧 **Smart Detection**: Detection script for proper remediation workflow
+- ✔️ **Configuration Validation**: Conflict detection and validation
+- 🌍 **PowerShell CLM Compatible**: Works in Constrained Language Mode for secure environments
 
 ### Supported Scenarios
 
@@ -51,13 +51,11 @@ The Toast Notification Script has been completely rewritten for **Microsoft Intu
 - User context execution (not SYSTEM)
 - Internet connectivity for online configuration files
 
-> **Note**: This version is specifically built to work with PowerShell Constrained Language Mode, ensuring compatibility with secure Intune environments.
-
 ### Quick Start
 
 1. **Download the files**
 2. **Configure** the `config-toast.xml` file for your organization and host it online
-3. **Deploy** in Microsoft Intune:
+3. **Deploy** in Microsoft Intune Remediations:
    - **Detection Script**: `Detect-ToastNotification.ps1`
    - **Remediation Script**: `Remediate-ToastNotification.ps1`
    - **Schedule**: Configure based on your notification requirements
@@ -66,14 +64,6 @@ The Toast Notification Script has been completely rewritten for **Microsoft Intu
 
 ![Intune Remediation Configuration](Screenshots/intune-remediation-config-example.png)
 
-### International Support
-
-Version 3.0.0 includes enhanced international compatibility:
-
-- **Numeric Day Format**: Uses 1-7 (Monday-Sunday) instead of localized day names
-- **Multi-Language Support**: XML configuration supports multiple languages (en-US, da-DK, sv-SE included)
-- **Culture Independent**: Works consistently across all Windows language installations
-- **Fallback Mechanisms**: Comprehensive fallbacks for various regional settings
 
 ### Configuration Highlights
 
@@ -84,15 +74,6 @@ The `config-toast.xml` file supports:
 - **Visual Customization**: Custom logos, hero images, and notification text
 - **Button Configuration**: Action buttons, dismiss buttons, snooze functionality
 - **Language Support**: Multi-language text definitions
-
-### What's New in 3.0.0
-
-- **Complete Rewrite**: Built from ground up for Microsoft Intune
-- **Enhanced Scheduling**: Support for multiple days and flexible hour targeting
-- **Improved Logging**: Advanced logging with rotation and IME integration
-- **Smart Detection**: Intelligent detection script for proper Intune workflow
-- **Configuration Validation**: Comprehensive conflict detection and validation
-- **Personalized Greetings**: Dynamic time-based user greetings with fallbacks
 
 ---
 
@@ -110,7 +91,7 @@ For organizations still using **Configuration Manager (SCCM)**, the legacy versi
 - Traditional ConfigMgr deployment model
 - PowerShell app notifications
 
-> ⚠️ **Note**: The legacy ConfigMgr version (2.x) is no longer actively developed. Organizations are encouraged to migrate to Microsoft Intune and use version 3.0.0 for enhanced features and ongoing support.
+> ⚠️ **Note**: The legacy ConfigMgr version (2.x) is no longer actively developed. Organizations are encouraged to migrate to Microsoft Intune and use version 3.0.0 for additional features and ongoing support.
 
 ---
 
@@ -136,4 +117,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-*Version 3.0.0 - Rewritten for Microsoft Intune | November 2025*
+*Version 3.0.0 - November 2025*

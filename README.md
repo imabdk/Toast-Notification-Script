@@ -77,6 +77,13 @@ The `config-toast.xml` file supports:
 
 ---
 
+## 🚀 Roadmap & Future Features
+
+### Planned Features (v3.1.0+)
+- [ ] **Disk Space Monitoring** - Proactive low disk space notifications with cleanup guidance
+
+---
+
 ## Legacy Versions (Configuration Manager)
 
 ### Version 2.3.0 - Configuration Manager Edition

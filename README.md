@@ -6,13 +6,12 @@
 
 ### Screenshots
 
-#### Toast Notification Examples
-
-**Weekly Message Notification:**
-![Weekly Message](Screenshots/toast-notification-script-weeklymessage.png)
-
-**Pending Reboot Notification:**
-![Pending Reboot](Screenshots/toast-notification-script-pendingreboot.png)
+<table>
+<tr>
+<td><strong>Weekly Message Notification</strong><br><img src="Screenshots/toast-notification-script-weeklymessage.png" alt="Weekly Message" width="400"></td>
+<td><strong>Pending Reboot Notification</strong><br><img src="Screenshots/toast-notification-script-pendingreboot.png" alt="Pending Reboot" width="400"></td>
+</tr>
+</table>
 
 ### Quick Download
 

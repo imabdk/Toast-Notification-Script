@@ -7,12 +7,12 @@
     This is the Toast Notification Script, completely rewritten for Microsoft Intune.
 
     Key Features:
-    â€¢ Weekly reminders with flexible scheduling (multiple days, any hour support)
-    â€¢ Pending reboot notifications based on configurable uptime thresholds
-    â€¢ Personalized greetings with dynamic time-based salutations
-    â€¢ Multi-level logging with rotation and error handling
-    â€¢ International compatibility with culture-independent operation
-    â€¢ PowerShell Constrained Language Mode compatibility
+    • Weekly reminders with flexible scheduling (multiple days, any hour support)
+    • Pending reboot notifications based on configurable uptime thresholds
+    • Personalized greetings with dynamic time-based salutations
+    • Multi-level logging with rotation and error handling
+    • International compatibility with culture-independent operation
+    • PowerShell Constrained Language Mode compatibility
 
 .PARAMETER Config
     Path or URL to the XML configuration file.
@@ -23,8 +23,8 @@
 
 .OUTPUTS
     Returns exit codes for Microsoft Intune reporting:
-    â€¢ 0: Success - Toast notification displayed or conditions not met (no action needed)
-    â€¢ 1: Configuration error or critical failure
+    • 0: Success - Toast notification displayed or conditions not met (no action needed)
+    • 1: Configuration error or critical failure
 
 .NOTES
     Script Name    : Remediate-ToastNotification.ps1

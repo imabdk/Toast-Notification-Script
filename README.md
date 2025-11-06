@@ -4,8 +4,6 @@
 
 🚀 **NEW:** Version 3.0.0 has been completely rewritten specifically for **Microsoft Intune and the remediations feature**.
 
-### Screenshots
-
 ![Toast Notification Script Examples](Screenshots/toast-notification-script.png)
 
 ### Quick Download
@@ -52,6 +50,8 @@ The Toast Notification Script has been completely rewritten for **Microsoft Intu
 - Microsoft Intune managed device
 - User context execution (not SYSTEM)
 - Internet connectivity for online configuration files
+
+> **Note**: This version is specifically built to work with PowerShell Constrained Language Mode, ensuring compatibility with secure Intune environments.
 
 ### Quick Start
 

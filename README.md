@@ -2,7 +2,7 @@
 
 ## Current Version: 3.0.0
 
-🚀 **NEW:** Version 3.0.0 has been completely rewritten specifically for **Microsoft Intune** and the **Remediations** feature.
+**Version 3.0.0** has been rewritten for **Microsoft Intune** and the **Remediations** feature.
 
 ![Toast Notification Script Examples](Screenshots/toast-notification-script.png)
 
@@ -27,14 +27,14 @@ The Toast Notification Script has been completely rewritten to provide native Wi
 
 ### Key Features & What's New
 
-- ✅ **Microsoft Intune Ready**: Built with proper exit codes and Remediations workflow integration
-- 📅 **Flexible Scheduling**: Day/hour targeting with support for multiple days and "any time" scheduling
-- 📊 **Multi-Level Logging**: Logging with rotation, IME integration, and fallback mechanisms
-- 👤 **Personalized Experience**: Dynamic time-based greetings with user's first name and fallback chains
-- 🎯 **Multiple Notification Types**: Weekly reminders, reboot notifications, general announcements
-- 🔧 **Smart Detection**: Detection script for proper remediation workflow
-- ✔️ **Configuration Validation**: Conflict detection and validation
-- 🌍 **PowerShell CLM Compatible**: Works in Constrained Language Mode for secure environments
+- **Microsoft Intune Integration**: Includes proper exit codes and Remediations workflow support
+- **Flexible Scheduling**: Day and hour targeting with support for multiple days and "any time" scheduling
+- **Multi-Level Logging**: Logging with rotation, IME integration, and fallback mechanisms
+- **Personalized Notifications**: Time-based greetings with user's first name and fallback options
+- **Multiple Notification Types**: Weekly reminders, reboot notifications, and general announcements
+- **Detection Script**: Included detection script for proper remediation workflow
+- **Configuration Validation**: Built-in conflict detection and configuration validation
+- **PowerShell CLM Support**: Compatible with Constrained Language Mode for secure environments
 
 ### Supported Scenarios
 
@@ -77,10 +77,10 @@ The `config-toast.xml` file supports:
 
 ---
 
-## 🚀 Roadmap & Future Features
+## Roadmap & Future Features
 
 ### Planned Features (v3.1.0+)
-- [ ] **Disk Space Monitoring** - Proactive low disk space notifications with cleanup guidance
+- [ ] **Disk Space Monitoring** - Low disk space notifications with cleanup guidance
 
 ---
 

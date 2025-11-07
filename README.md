@@ -81,6 +81,8 @@ The `config-toast.xml` file supports:
 
 ### Planned Features (v3.1.0+)
 - [ ] **Disk Space Monitoring** - Low disk space notifications with cleanup guidance
+- [ ] **Battery Health Monitoring** - Proactive notifications when laptop battery health degrades below optimal levels
+- [ ] **OneDrive Sync Issues** - Alert users to sync conflicts, pending files, and connectivity problems
 
 ---
 

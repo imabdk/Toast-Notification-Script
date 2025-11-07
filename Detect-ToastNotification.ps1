@@ -25,10 +25,14 @@
 
 .NOTES
     Script Name    : Detect-ToastNotification.ps1
-    Version        : 3.1.0
+    Version        : 3.0.1
     Author         : Martin Bengtsson, Rewritten for Microsoft Intune
     Created        : November 2025
     Updated        : November 2025
+
+    Version History:
+    - 3.0.1: Fixed detection logic to trigger notifications when no conditional features are enabled
+    - 3.0.0: Complete rewrite for Microsoft Intune with PowerShell best practices and professional documentation
 
     Requirements:
     - Windows 10 version 1709 or later / Windows 11

@@ -33,6 +33,9 @@
     Created        : November 2025
     Updated        : November 2025
 
+    Version History:
+    - 3.0.0: Complete rewrite for Microsoft Intune with PowerShell best practices, professional documentation, and enhanced functionality
+
     Requirements:
     - Windows 10 version 1709 or later / Windows 11
     - PowerShell 5.1 or later

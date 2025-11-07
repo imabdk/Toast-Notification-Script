@@ -7,12 +7,12 @@
     This is the Toast Notification Script, completely rewritten for Microsoft Intune.
 
     Key Features:
-    • Weekly reminders with flexible scheduling (multiple days, any hour support)
-    • Pending reboot notifications based on configurable uptime thresholds
-    • Personalized greetings with dynamic time-based salutations
-    • Multi-level logging with rotation and error handling
-    • International compatibility with culture-independent operation
-    • PowerShell Constrained Language Mode compatibility
+    - Weekly reminders with flexible scheduling (multiple days, any hour support)
+    - Pending reboot notifications based on configurable uptime thresholds
+    - Personalized greetings with dynamic time-based salutations
+    - Multi-level logging with rotation and error handling
+    - International compatibility with culture-independent operation
+    - PowerShell Constrained Language Mode compatibility
 
 .PARAMETER Config
     Path or URL to the XML configuration file.
@@ -23,8 +23,8 @@
 
 .OUTPUTS
     Returns exit codes for Microsoft Intune reporting:
-    • 0: Success - Toast notification displayed or conditions not met (no action needed)
-    • 1: Configuration error or critical failure
+    - 0: Success - Toast notification displayed or conditions not met (no action needed)
+    - 1: Configuration error or critical failure
 
 .NOTES
     Script Name    : Remediate-ToastNotification.ps1
@@ -34,16 +34,16 @@
     Updated        : November 2025
 
     Requirements:
-    â€¢ Windows 10 version 1709 or later / Windows 11
-    â€¢ PowerShell 5.1 or later
-    â€¢ Microsoft Intune managed device
-    â€¢ User context execution (not SYSTEM)
-    â€¢ Internet connectivity for online configuration files
+    - Windows 10 version 1709 or later / Windows 11
+    - PowerShell 5.1 or later
+    - Microsoft Intune managed device
+    - User context execution (not SYSTEM)
+    - Internet connectivity for online configuration files
 
     Intune Deployment:
-    â€¢ Deploy with detection script: Detect-ToastNotification.ps1
-    â€¢ Configure appropriate schedule based on notification requirements
-    â€¢ Ensure proper user assignment and targeting
+    - Deploy with detection script: Detect-ToastNotification.ps1
+    - Configure appropriate schedule based on notification requirements
+    - Ensure proper user assignment and targeting
 
 .LINK
     https://www.imab.dk/windows-10-toast-notification-script/
@@ -56,8 +56,9 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory=$false)]
-    [string]$Config = "https://toast.imab.dk/config-toast-pendingreboot.xml"
+    #[string]$Config = "https://toast.imab.dk/config-toast-pendingreboot.xml"
     #[string]$Config = "https://toast.imab.dk/config-toast-weeklymessage.xml"
+    [string]$Config = "https://toast.imab.dk/config-toast-nofeatures.xml"
 )
 function Write-Log() {
     [CmdletBinding()]

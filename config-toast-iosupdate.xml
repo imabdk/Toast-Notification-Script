@@ -21,7 +21,7 @@
 	<en-US> <!-- Default fallback language. This language will be used if MultiLanguageSupport is set to False or if no matching language is found -->
         <Text Name="PendingRebootUptimeText">Your computer is required to restart due to having exceeded the maximum allowed uptime.</Text> <!-- Text used if the PendingRebootUptimeText Option is enabled -->
         <Text Name="WeeklyMessageTitle">iOS 26 Update Required</Text> <!-- Title text for weekly message notifications -->
-        <Text Name="WeeklyMessageBody">Your iPhone or iPad needs to be updated to iOS 26 to ensure security and compatibility.&#10;&#10;Please update your iOS device at your earliest convenience. Click 'Guide' for official Apple instructions.&#10;&#10;Note: Failure to update in a timely manner may result in device deactivation.&#10;&#10;Thank you in advance.</Text> <!-- Body text for weekly message notifications -->
+        <Text Name="WeeklyMessageBody">Your iPhone or iPad needs to be updated to iOS 26.1 to ensure security and compatibility.&#10;&#10;Please update your iOS device at your earliest convenience. Click 'Guide' for official Apple instructions.&#10;&#10;Note: Failure to update in a timely manner may result in device deactivation.&#10;&#10;Thank you in advance.</Text> <!-- Body text for weekly message notifications -->
         <Text Name="ActionButton1">Guide</Text>  <!-- Text on the ActionButton if enabled -->
 		<Text Name="ActionButton2">Learn More</Text>  <!-- Text on the ActionButton if enabled -->
         <Text Name="DismissButton">Dismiss</Text> <!-- Text on the DismissButton if enabled -->

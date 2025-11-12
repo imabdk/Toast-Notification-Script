@@ -1,0 +1,84 @@
+# PowerShell specific
+*.ps1xml
+*.psc1
+*.psd1~
+*.tmp
+
+# Visual Studio Code
+.vscode/
+*.code-workspace
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Logs
+*.log
+logs/
+*.log.*
+
+# Temporary files
+*.temp
+*.tmp
+*~
+.DS_Store
+
+# PowerShell transcripts
+PowerShell_transcript.*
+
+# Test files
+test/
+testing/
+*test*
+
+# Personal/Local config files
+config-local*.xml
+*-local.*
+local-*
+
+# Backup files
+*.bak
+*.backup
+*-backup.*
+
+# IDE files
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Build artifacts
+bin/
+obj/
+*.dll
+*.exe
+*.pdb
+*.cache
+
+# Package files
+*.nupkg
+*.snupkg
+
+# Azure/Cloud specific
+*.publishsettings
+*.azurePubxml
+
+# Sensitive information
+secrets/
+*.secret
+*password*
+*credential*
+*.pfx
+*.p12
+
+# Social media content
+social-media-posts.md
+blog-post.md

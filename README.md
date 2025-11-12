@@ -1,8 +1,8 @@
 # Toast Notification Script
 
-## Current Version: 3.0.0
+## Current Version: 3.0.1
 
-**Version 3.0.0** has been rewritten for **Microsoft Intune** and the **Remediations** feature.
+**Version 3.0.1** has been rewritten for **Microsoft Intune** and the **Remediations** feature.
 
 ![Toast Notification Script Examples](Screenshots/toast-notification-script.png)
 
@@ -21,7 +21,7 @@
 
 ---
 
-## Version 3.0.0 Overview
+## Version 3.0.1 Overview
 
 The Toast Notification Script has been completely rewritten to provide native Windows toast notifications through Microsoft Intune's Remediations feature.
 
@@ -74,6 +74,16 @@ The `config-toast.xml` file supports:
 - **Visual Customization**: Custom logos, hero images, and notification text
 - **Button Configuration**: Action buttons, dismiss buttons, snooze functionality
 - **Language Support**: Multi-language text definitions
+
+---
+
+## Version History
+
+### Version 3.0.1
+- Fixed empty XML space in WeeklyMessage notifications by conditionally excluding BodyText2 group
+
+### Version 3.0.0
+- Complete rewrite for Microsoft Intune with PowerShell best practices, professional documentation, and enhanced functionality
 
 ---
 

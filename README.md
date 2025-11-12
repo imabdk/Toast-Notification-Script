@@ -2,7 +2,7 @@
 
 ## Current Version: 3.0.1
 
-**Version 3.0.1** has been rewritten for **Microsoft Intune** and the **Remediations** feature.
+**Version 3.0.0** has been rewritten for **Microsoft Intune** and the **Remediations** feature.
 
 ![Toast Notification Script Examples](Screenshots/toast-notification-script.png)
 
@@ -23,7 +23,7 @@
 
 ## Version 3.0.1 Overview
 
-The Toast Notification Script has been completely rewritten to provide native Windows toast notifications through Microsoft Intune's Remediations feature.
+The Toast Notification Script has been completely rewritten in **version 3.0.0** to provide native Windows toast notifications through Microsoft Intune's Remediations feature.
 
 ### Key Features & What's New
 

@@ -59,7 +59,7 @@ param(
     [Parameter(Mandatory=$false)]
     #[string]$Config = "https://toast.imab.dk/config-toast-pendingreboot.xml"
     #[string]$Config = "https://toast.imab.dk/config-toast-weeklymessage.xml"
-    [string]$Config = "https://toast.imab.dk/config-toast-nofeatures.xml"
+    [string]$Config = "https://toast.imab.dk/config-toast-iosupdate.xml"
 )
 
 # Create Get-DeviceUptime function (same as main script)

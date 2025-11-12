@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Configuration>
+	<Feature Name="Toast" Enabled="True" /> <!-- Enables or disables the entire toast notification -->
+	<Feature Name="PendingRebootUptime" Enabled="False" />	<!-- Enables the toast for reminding users of restarting their device if it exceeds the uptime defined in MaxUptimeDays -->
+	<Feature Name="WeeklyMessage" Enabled="True" /> <!-- Enables weekly reminder messages on specified day and hour -->
+	<Option Name="MaxUptimeDays" Value="-6" />	<!-- When using the toast for checking for pending reboots. A reboot is considered pending if computer uptime exceeds the value set here -->
+	<Option Name="WeeklyMessageDay" Value="1,2,3,4,5" /> <!-- Numeric day(s) when WeeklyMessage should trigger (1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday, 7=Sunday). Single day: 3 | Multiple days: 1,3,5 | All weekdays: 1,2,3,4,5 -->
+	<Option Name="WeeklyMessageHour" Value="-1" /> <!-- Hour when WeeklyMessage should trigger (-1=any hour during target day, 0-23=specific hour in 24-hour format) -->
+	<Option Name="PendingRebootUptimeText" Enabled="False" />	<!-- Adds an additional group to the toast with text about the uptime of the computer -->
+	<Option Name="CustomNotificationApp" Enabled="True" Value="Toast Notification Script"/>	<!-- The app in Windows doing the actual notification. When enabled, uses custom app. When disabled, automatically defaults to PowerShell app for reliable notification delivery -->
+	<Option Name="LogoImageName" Value="https://toast.imab.dk/ToastLogoImageIMAB.png" />  <!-- File name of the image shown as logo in the toast notoification  -->
+	<Option Name="HeroImageName" Value="https://toast.imab.dk/ToastHeroImageiOS.png" /> <!-- File name of the image shown in the top of the toast notification -->	
+	<Option Name="ActionButton1" Enabled="True" />	<!-- Enables or disables the action button. -->
+	<Option Name="ActionButton2" Enabled="False" />	<!-- Enables or disables the action button. -->
+	<Option Name="DismissButton" Enabled="True" />	<!-- Enables or disables the dismiss button. -->
+	<Option Name="SnoozeButton" Enabled="False" /> <!-- Enabling this option will always enable action button and dismiss button -->
+	<Option Name="Scenario" Type="reminder" />	<!-- Possible values are: reminder | short | long | alarm -->
+	<Option Name="Action1" Value="https://support.apple.com/en-us/118575" />	<!-- Action taken when using the Action button. Can be any protocol in Windows -->
+	<Option Name="Action2" Value="https://imab.dk" />	<!-- Action taken when using the Action button. Can be any protocol in Windows -->
+	<Text Option="MultiLanguageSupport" Enabled="False" /> <!-- Enable support for multiple languages. If set to True, the toast notification will look for the users language culture within the config file -->
+	<en-US> <!-- Default fallback language. This language will be used if MultiLanguageSupport is set to False or if no matching language is found -->
+        <Text Name="PendingRebootUptimeText">Your computer is required to restart due to having exceeded the maximum allowed uptime.</Text> <!-- Text used if the PendingRebootUptimeText Option is enabled -->
+        <Text Name="WeeklyMessageTitle">iOS 26 Update Required</Text> <!-- Title text for weekly message notifications -->
+        <Text Name="WeeklyMessageBody">Your iPhone or iPad needs to be updated to iOS 26 to ensure security and compatibility.&#10;&#10;Please update your iOS device at your earliest convenience. Click 'Guide' for official Apple instructions.&#10;&#10;Note: Failure to update in a timely manner may result in device deactivation.&#10;&#10;Thank you in advance.</Text> <!-- Body text for weekly message notifications -->
+        <Text Name="ActionButton1">Guide</Text>  <!-- Text on the ActionButton if enabled -->
+		<Text Name="ActionButton2">Learn More</Text>  <!-- Text on the ActionButton if enabled -->
+        <Text Name="DismissButton">Dismiss</Text> <!-- Text on the DismissButton if enabled -->
+        <Text Name="SnoozeButton">Snooze</Text> <!-- Text on the SnoozeButton if enabled -->
+        <Text Name="AttributionText">www.imab.dk</Text>
+        <Text Name="HeaderText">Helpdesk kindly reminds you</Text>
+        <Text Name="TitleText">Update Your iOS Device to iOS 26</Text>
+        <Text Name="BodyText1">Your iPhone or iPad requires an update to iOS 26 for security, stability, and compliance with company policies.</Text>
+        <Text Name="BodyText2">Please update your iOS device as soon as possible. Thank you for keeping your devices secure and up to date.</Text>
+        <Text Name="SnoozeText">Click snooze to be reminded again in:</Text>
+        <Text Name="GreetMorningText">Good morning</Text>
+        <Text Name="GreetAfternoonText">Good afternoon</Text>
+        <Text Name="GreetEveningText">Good evening</Text>
+        <Text Name="MinutesText">Minutes</Text>
+        <Text Name="HourText">Hour</Text>
+        <Text Name="HoursText">Hours</Text>
+        <Text Name="ComputerUptimeText">Computer uptime:</Text>
+        <Text Name="ComputerUptimeDaysText">days</Text>
+    </en-US>
+	<da-DK>
+        <Text Name="PendingRebootUptimeText">Din computer er påkrævet at genstarte, da den har overskredet den maksimale oppetid.</Text> <!-- Text used if the PendingRebootUptimeText Option is enabled -->
+        <Text Name="WeeklyMessageTitle">iOS 26 Opdatering Påkrævet</Text> <!-- Title text for weekly message notifications -->
+        <Text Name="WeeklyMessageBody">Din iPhone eller iPad skal opdateres til iOS 26 for at sikre sikkerhed og kompatibilitet.&#10;&#10;Opdater venligst din iOS-enhed ved først givne lejlighed. Klik 'Opdateringsvejledning' for instruktioner eller 'Mere Info' for yderligere information.&#10;&#10;Bemærk: Manglende opdatering kan resultere i at enheden bliver deaktiveret.&#10;&#10;På forhånd tak.</Text> <!-- Body text for weekly message notifications -->
+        <Text Name="ActionButton1">Opdateringsvejledning</Text>  <!-- Text on the ActionButton if enabled -->
+		<Text Name="ActionButton2">Mere Info</Text>  <!-- Text on the ActionButton if enabled -->
+        <Text Name="DismissButton">Afvis</Text> <!-- Text on the DismissButton if enabled -->
+        <Text Name="SnoozeButton">Udskyd</Text> <!-- Text on the SnoozeButton if enabled -->
+        <Text Name="AttributionText">www.imab.dk</Text>
+        <Text Name="HeaderText">IT Afdelingen - Enhedsopdatering</Text>
+        <Text Name="TitleText">Opdater Din iOS-Enhed til iOS 26</Text>
+        <Text Name="BodyText1">Din iPhone eller iPad kræver en opdatering til iOS 26 af hensyn til sikkerhed, stabilitet og overholdelse af virksomhedens politikker.</Text>
+        <Text Name="BodyText2">Opdater venligst din iOS-enhed hurtigst muligt. Tak fordi du holder dine enheder sikre og opdaterede.</Text>
+        <Text Name="SnoozeText">Klik udskyd for at blive påmindet igen om:</Text>
+        <Text Name="GreetMorningText">Godmorgen</Text>
+        <Text Name="GreetAfternoonText">God eftermiddag</Text>
+        <Text Name="GreetEveningText">Godaften</Text>
+        <Text Name="MinutesText">Minutter</Text>
+        <Text Name="HourText">Time</Text>
+        <Text Name="HoursText">Timer</Text>
+        <Text Name="ComputerUptimeText">Computer oppetid:</Text>
+        <Text Name="ComputerUptimeDaysText">dage</Text>
+    </da-DK>
+    <sv-SE>
+		<Text Name="PendingRebootUptimeText">Din dator behöver startas om då den överskridit den maximala tillåtna upptiden.</Text>	<!-- Text used if the PendingRebootUptimeText Option is enabled -->
+		<Text Name="WeeklyMessageTitle">iOS 26 Uppdatering Krävs</Text> <!-- Title text for weekly message notifications -->
+		<Text Name="WeeklyMessageBody">Din iPhone eller iPad behöver uppdateras till iOS 26 för att säkerställa säkerhet och kompatibilitet.&#10;&#10;Vänligen uppdatera din iOS-enhet vid närmaste tillfälle. Klicka 'Uppdateringsguide' för instruktioner eller 'Läs Mer' för ytterligare information.&#10;&#10;Observera: Enheten kan komma att inaktiveras om uppdateringen inte genomförs i tid.&#10;&#10;Tack på förhand.</Text> <!-- Body text for weekly message notifications -->
+		<Text Name="ActionButton1">Uppdateringsguide</Text>	<!-- Text on the ActionButton if enabled -->
+		<Text Name="ActionButton2">Läs Mer</Text>	<!-- Text on the ActionButton if enabled -->
+		<Text Name="DismissButton">Stäng</Text>	<!-- Text on the DismissButton if enabled -->
+		<Text Name="SnoozeButton">Påminn</Text>	<!-- Text on the SnoozeButton if enabled -->
+		<Text Name="AttributionText">www.imab.dk</Text>
+		<Text Name="HeaderText">IT-avdelningen - Enhetsuppdatering</Text>
+		<Text Name="TitleText">Uppdatera Din iOS-Enhet till iOS 26</Text>
+		<Text Name="BodyText1">Din iPhone eller iPad kräver en uppdatering till iOS 26 för säkerhet, stabilitet och efterlevnad av företagets policyer.</Text>
+		<Text Name="BodyText2">Vänligen uppdatera din iOS-enhet så snart som möjligt. Tack för att du håller dina enheter säkra och uppdaterade.</Text>
+		<Text Name="SnoozeText">Klicka på Påminn för att bli påmind igen:</Text>
+		<Text Name="GreetMorningText">God morgon</Text>
+		<Text Name="GreetAfternoonText">God eftermiddag</Text>
+		<Text Name="GreetEveningText">God kväll</Text>
+		<Text Name="MinutesText">Minuter</Text>
+		<Text Name="HourText">Timma</Text>
+		<Text Name="HoursText">Timmar</Text>
+		<Text Name="ComputerUptimeText">Datorns upptid:</Text>
+		<Text Name="ComputerUptimeDaysText">dagar</Text>
+    </sv-SE>
+</Configuration>

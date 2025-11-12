@@ -28,12 +28,13 @@
 
 .NOTES
     Script Name    : Remediate-ToastNotification.ps1
-    Version        : 3.0.0
+    Version        : 3.0.1
     Author         : Martin Bengtsson, Rewritten for Microsoft Intune
     Created        : November 2025
     Updated        : November 2025
 
     Version History:
+    - 3.0.1: Fixed empty XML space in WeeklyMessage notifications by conditionally excluding BodyText2 group
     - 3.0.0: Complete rewrite for Microsoft Intune with PowerShell best practices, professional documentation, and enhanced functionality
 
     Requirements:
@@ -61,7 +62,7 @@ param(
     [Parameter(Mandatory=$false)]
     #[string]$Config = "https://toast.imab.dk/config-toast-pendingreboot.xml"
     #[string]$Config = "https://toast.imab.dk/config-toast-weeklymessage.xml"
-    [string]$Config = "https://toast.imab.dk/config-toast-nofeatures.xml"
+    [string]$Config = "https://toast.imab.dk/config-toast-iosupdate.xml"
 )
 function Write-Log() {
     [CmdletBinding()]
@@ -666,11 +667,15 @@ function New-ToastXml() {
                 <text hint-style="body" hint-wrap="true">$(if ($IsWeeklyMessage -and -NOT[string]::IsNullOrEmpty($WeeklyMessageBodyText)) { $WeeklyMessageBodyText } else { $BodyText1 })</text>
             </subgroup>
         </group>
+$(if (-NOT $IsWeeklyMessage -and -NOT[string]::IsNullOrEmpty($BodyText2)) {
+@"
         <group>
             <subgroup>
-                <text hint-style="body" hint-wrap="true">$(if ($IsWeeklyMessage) { "" } else { $BodyText2 })</text>
+                <text hint-style="body" hint-wrap="true">$BodyText2</text>
             </subgroup>
         </group>
+"@
+})
 "@
 
     # Add uptime information if requested
@@ -893,7 +898,7 @@ function Save-NotificationLastRunTime() {
 
 #region Variables
 # Setting global script version
-$global:ScriptVersion = "3.0.0"
+$global:ScriptVersion = "3.0.1"
 # Setting executing directory
 $global:ScriptPath = Split-Path -Parent $MyInvocation.MyCommand.Definition
 # Setting global registry path

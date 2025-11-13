@@ -50,6 +50,16 @@ The Toast Notification Script has been completely rewritten in **version 3.0.0**
 - User context execution (not SYSTEM)
 - Internet connectivity for online configuration files
 
+### Constrained Language Mode Compatibility
+
+⚠️ **Known Issue**: When deployed via Microsoft Intune IME, the script may encounter dot-sourcing errors due to language mode switching from Full Language Mode to CLM when Windows Runtime assemblies load. This creates cross-language mode boundary violations regardless of AppLocker whitelisting.
+
+**Status**: Currently working on a fix for this language mode switching issue.
+
+**WDAC Compatibility**: The script should work with Windows Defender Application Control (WDAC) when properly configured.
+
+**Error Example**: `"Cannot dot-source this command because it was defined in a different language mode"`
+
 ### Quick Start
 
 1. **Download the files**

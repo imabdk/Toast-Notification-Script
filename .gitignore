@@ -79,6 +79,9 @@ secrets/
 *.pfx
 *.p12
 
+# CLM development files
+New-ToastXml-CLM-Compatible.ps1
+
 # Social media content
 social-media-posts.md
 blog-post.md

@@ -12,7 +12,6 @@
     - Personalized greetings with dynamic time-based salutations
     - Multi-level logging with rotation and error handling
     - International compatibility with culture-independent operation
-    - PowerShell Constrained Language Mode compatibility
 
 .PARAMETER Config
     Path or URL to the XML configuration file.
@@ -28,12 +27,13 @@
 
 .NOTES
     Script Name    : Remediate-ToastNotification.ps1
-    Version        : 3.0.1
+    Version        : 3.0.2
     Author         : Martin Bengtsson, Rewritten for Microsoft Intune
     Created        : November 2025
     Updated        : November 2025
 
     Version History:
+    - 3.0.2: Removed PowerShell Constrained Language Mode compatibility claim (under development)
     - 3.0.1: Fixed empty XML space in WeeklyMessage notifications by conditionally excluding BodyText2 group
     - 3.0.0: Complete rewrite for Microsoft Intune with PowerShell best practices, professional documentation, and enhanced functionality
 
@@ -493,7 +493,7 @@ function Get-ToastConfig() {
     if ($ConfigPath -match "^https?://") {
         Write-Log -Message "Config file is hosted online. Downloading from: $ConfigPath"
         try {
-            # Use Invoke-RestMethod for CLM compatibility and single request
+            # Use Invoke-RestMethod for single request
             $ConfigContent = Invoke-RestMethod -Uri $ConfigPath -Method Get -UseBasicParsing
             $Xml = [xml]$ConfigContent
             Write-Log -Message "Successfully loaded online config file: $ConfigPath"
@@ -898,7 +898,7 @@ function Save-NotificationLastRunTime() {
 
 #region Variables
 # Setting global script version
-$global:ScriptVersion = "3.0.1"
+$global:ScriptVersion = "3.0.2"
 # Setting executing directory
 $global:ScriptPath = Split-Path -Parent $MyInvocation.MyCommand.Definition
 # Setting global registry path

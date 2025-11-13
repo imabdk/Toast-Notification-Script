@@ -1,6 +1,6 @@
 # Toast Notification Script
 
-## Current Version: 3.0.1
+## Current Version: 3.0.2
 
 **Version 3.0.0** has been rewritten for **Microsoft Intune** and the **Remediations** feature.
 
@@ -21,7 +21,7 @@
 
 ---
 
-## Version 3.0.1 Overview
+## Version 3.0.2 Overview
 
 The Toast Notification Script has been completely rewritten in **version 3.0.0** to provide native Windows toast notifications through Microsoft Intune's Remediations feature.
 
@@ -34,7 +34,6 @@ The Toast Notification Script has been completely rewritten in **version 3.0.0**
 - **Multiple Notification Types**: Weekly reminders, reboot notifications, and general announcements
 - **Detection Script**: Included detection script for proper remediation workflow
 - **Configuration Validation**: Built-in conflict detection and configuration validation
-- **PowerShell CLM Support**: Compatible with Constrained Language Mode for secure environments
 
 ### Supported Scenarios
 
@@ -78,6 +77,9 @@ The `config-toast.xml` file supports:
 ---
 
 ## Version History
+
+### Version 3.0.2
+- Removed PowerShell Constrained Language Mode compatibility claim (under development)
 
 ### Version 3.0.1
 - Fixed empty XML space in WeeklyMessage notifications by conditionally excluding BodyText2 group

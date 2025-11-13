@@ -54,7 +54,7 @@ The Toast Notification Script has been completely rewritten in **version 3.0.0**
 
 ✅ **CLM Support**: The script works correctly in PowerShell Constrained Language Mode environments.
 
-⚠️ **Intune IME Issue**: When deployed via Microsoft Intune IME, the script may encounter dot-sourcing errors due to IME switching language modes mid-execution (from Full Language Mode to CLM when Windows Runtime assemblies load). This creates cross-language mode boundary violations due to differences in how Intune IME handles execution context compared to other deployment methods like Configuration Manager.
+⚠️ **Intune IME Issue**: When deployed via Microsoft Intune IME on systems where CLM is enforced through AppLocker policies, the script may encounter dot-sourcing errors due to IME switching language modes mid-execution (from Full Language Mode to CLM when Windows Runtime assemblies load). This creates cross-language mode boundary violations due to differences in how Intune IME handles execution context compared to other deployment methods like Configuration Manager.
 
 **WDAC Compatibility**: The script should work with Windows Defender Application Control (WDAC) when properly configured to maintain consistent language mode throughout execution.
 

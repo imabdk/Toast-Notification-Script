@@ -25,12 +25,13 @@
 
 .NOTES
     Script Name    : Detect-ToastNotification.ps1
-    Version        : 3.0.1
+    Version        : 3.0.3
     Author         : Martin Bengtsson, Rewritten for Microsoft Intune
     Created        : November 2025
-    Updated        : November 2025
+    Updated        : February 2026
 
     Version History:
+    - 3.0.3: Aligned version with remediation script. Housekeeping and consistency updates.
     - 3.0.1: Fixed detection logic to trigger notifications when no conditional features are enabled
     - 3.0.0: Complete rewrite for Microsoft Intune with PowerShell best practices and professional documentation
 
@@ -57,15 +58,13 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory=$false)]
-    #[string]$Config = "https://toast.imab.dk/config-toast-pendingreboot.xml"
-    #[string]$Config = "https://toast.imab.dk/config-toast-weeklymessage.xml"
-    [string]$Config = "https://toast.imab.dk/config-toast-iosupdate.xml"
+    [string]$Config = "https://toast.imab.dk/config-toast-nofeatures.xml"
 )
 
 # Create Get-DeviceUptime function (same as main script)
 function Get-DeviceUptime() {
     $OS = Get-CimInstance Win32_OperatingSystem
-    $Uptime = (Get-Date) - ($OS.LastBootUptime)
+    $Uptime = (Get-Date) - ($OS.LastBootUpTime)
     $Uptime.Days
 }
 

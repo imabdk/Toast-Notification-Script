@@ -1,6 +1,6 @@
 # Toast Notification Script
 
-## Current Version: 3.0.2
+## Current Version: 3.0.3
 
 **Version 3.0.0** has been rewritten for **Microsoft Intune** and the **Remediations** feature.
 
@@ -86,7 +86,32 @@ The `config-toast.xml` file supports:
 
 ---
 
+## Testing
+
+The project includes a comprehensive Pester test suite with **66 tests** covering:
+
+- Configuration validation and conflict detection
+- Weekly message scheduling and trigger logic
+- Toast XML generation and button combinations
+- Multi-language text element parity across all languages
+- Logging functionality
+- Script parsing and function definitions
+
+**Run tests:**
+
+```powershell
+Invoke-Pester -Path .\Tests\Toast-Notification-Script.Tests.ps1 -Output Detailed
+```
+
+> **Requires** [Pester v5+](https://pester.dev/). Install with: `Install-Module -Name Pester -Force -SkipPublisherCheck`
+
+---
+
 ## Version History
+
+### Version 3.0.3
+- Fixed DismissButton being forced on when ActionButton2 is enabled. Button config values are now properly respected.
+- Added Pester test suite (66 tests)
 
 ### Version 3.0.2
 - Removed PowerShell Constrained Language Mode compatibility claim (under development)

@@ -27,12 +27,14 @@
 
 .NOTES
     Script Name    : Remediate-ToastNotification.ps1
-    Version        : 3.0.2
+    Version        : 3.0.3
     Author         : Martin Bengtsson, Rewritten for Microsoft Intune
     Created        : November 2025
-    Updated        : November 2025
+    Updated        : February 2026
 
     Version History:
+    - 3.0.3: Fixed DismissButton being forced on when ActionButton2 is enabled. Button config values are now properly respected.
+             Added Pester test suite (66 tests) covering config validation, button combinations, toast XML generation, scheduling logic, and multi-language support.
     - 3.0.2: Removed PowerShell Constrained Language Mode compatibility claim (under development)
     - 3.0.1: Fixed empty XML space in WeeklyMessage notifications by conditionally excluding BodyText2 group
     - 3.0.0: Complete rewrite for Microsoft Intune with PowerShell best practices, professional documentation, and enhanced functionality
@@ -60,9 +62,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory=$false)]
-    #[string]$Config = "https://toast.imab.dk/config-toast-pendingreboot.xml"
-    #[string]$Config = "https://toast.imab.dk/config-toast-weeklymessage.xml"
-    [string]$Config = "https://toast.imab.dk/config-toast-iosupdate.xml"
+    [string]$Config = "https://toast.imab.dk/config-toast-nofeatures.xml"
 )
 function Write-Log() {
     [CmdletBinding()]
@@ -898,7 +898,7 @@ function Save-NotificationLastRunTime() {
 
 #region Variables
 # Setting global script version
-$global:ScriptVersion = "3.0.2"
+$global:ScriptVersion = "3.0.3"
 # Setting executing directory
 $global:ScriptPath = Split-Path -Parent $MyInvocation.MyCommand.Definition
 # Setting global registry path
@@ -1132,8 +1132,10 @@ if ($SnoozeButtonEnabled -eq "True") {
     $Toast = New-ToastXml -IncludeSnoozeButton $true -IncludeUptimeInfo $IncludeUptime -UptimeDays $Uptime -IsWeeklyMessage ($WeeklyMessageTriggered -eq $true)
 }
 elseif ($ActionButton2Enabled -eq "True") {
-    Write-Log -Message "Creating toast with both action buttons and dismiss button"
-    $Toast = New-ToastXml -IncludeActionButton1 $true -IncludeActionButton2 $true -IncludeDismissButton $true -IncludeUptimeInfo $IncludeUptime -UptimeDays $Uptime -IsWeeklyMessage ($WeeklyMessageTriggered -eq $true)
+    $IncludeAction1 = ($ActionButton1Enabled -eq "True")
+    $IncludeDismiss = ($DismissButtonEnabled -eq "True")
+    Write-Log -Message "Creating toast with ActionButton2 enabled (ActionButton1: $IncludeAction1, DismissButton: $IncludeDismiss)"
+    $Toast = New-ToastXml -IncludeActionButton1 $IncludeAction1 -IncludeActionButton2 $true -IncludeDismissButton $IncludeDismiss -IncludeUptimeInfo $IncludeUptime -UptimeDays $Uptime -IsWeeklyMessage ($WeeklyMessageTriggered -eq $true)
 }
 else {
     # Standard button combinations

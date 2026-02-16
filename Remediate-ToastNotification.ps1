@@ -44,7 +44,6 @@
     - PowerShell 5.1 or later
     - Microsoft Intune managed device
     - User context execution (not SYSTEM)
-    - Internet connectivity for online configuration files
 
     Intune Deployment:
     - Deploy with detection script: Detect-ToastNotification.ps1

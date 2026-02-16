@@ -45,7 +45,6 @@ Version 3.0 is a complete rewrite targeting **Microsoft Intune** and its **Remed
 - PowerShell 5.1+
 - Intune managed device
 - Must run in user context (not SYSTEM)
-- Internet access if using online config/images
 
 ### Constrained Language Mode
 
